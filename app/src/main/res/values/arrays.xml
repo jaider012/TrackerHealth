@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="activity_types">
+        <item>Walking</item>
+        <item>Running</item>
+        <item>Cycling</item>
+        <item>Swimming</item>
+        <item>Gym Workout</item>
+        <item>Yoga</item>
+        <item>Dancing</item>
+        <item>Hiking</item>
+        <item>Other</item>
+    </string-array>
+
+    <string-array name="meal_types">
+        <item>Breakfast</item>
+        <item>Lunch</item>
+        <item>Dinner</item>
+        <item>Snack</item>
+    </string-array>
+</resources> 

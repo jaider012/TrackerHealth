@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">TrackerHealth</string>
+    <string name="login">Login</string>
+    <string name="register">Register</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="forgot_password">Forgot Password?</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="physical_activity">Physical Activity</string>
+    <string name="food_tracker">Food Tracker</string>
+    <string name="reports">Reports</string>
+    <string name="settings">Settings</string>
+    <string name="logout">Logout</string>
+    <string name="save">Save</string>
+    <string name="cancel">Cancel</string>
+    <string name="welcome_message">Welcome to TrackerHealth!</string>
+    <string name="daily_summary">Daily Summary</string>
+    <string name="weekly_summary">Weekly Summary</string>
+    <string name="monthly_summary">Monthly Summary</string>
+</resources>
