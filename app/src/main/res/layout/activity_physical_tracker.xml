@@ -1,94 +1,171 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".PhysicalActivityTracker">
+    android:layout_height="match_parent">
 
-    <LinearLayout
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@id/bottom_navigation"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/track_activity"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary_text"
+                android:layout_marginBottom="16dp" />
+
+            <androidx.cardview.widget.CardView
+                style="@style/DashboardCard">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/activity_type"
+                        style="@style/TitleText"
+                        android:layout_marginBottom="8dp" />
+
+                    <Spinner
+                        android:id="@+id/activity_type_spinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="16dp"
+                        android:padding="8dp"
+                        android:background="@color/light_gray" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/duration_minutes"
+                        style="@style/SubtitleText"
+                        android:layout_marginBottom="8dp" />
+
+                    <EditText
+                        android:id="@+id/duration_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:hint="@string/enter_duration"
+                        android:layout_marginBottom="16dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/distance_km"
+                        style="@style/SubtitleText"
+                        android:layout_marginBottom="8dp" />
+
+                    <EditText
+                        android:id="@+id/distance_input"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="numberDecimal"
+                        android:hint="@string/enter_distance"
+                        android:layout_marginBottom="16dp" />
+
+                    <CheckBox
+                        android:id="@+id/use_gps_checkbox"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/use_gps_tracking"
+                        android:layout_marginBottom="16dp" />
+
+                    <LinearLayout
+                        android:id="@+id/gps_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/gps_tracking"
+                            style="@style/SubtitleText"
+                            android:layout_marginBottom="8dp" />
+
+                        <!-- Aquí iría un mapa o visualización de ruta -->
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="200dp"
+                            android:background="@color/light_gray"
+                            android:layout_marginBottom="16dp" />
+
+                        <Button
+                            android:id="@+id/start_tracking_button"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/start_tracking"
+                            style="@style/PrimaryButton"
+                            android:layout_marginBottom="16dp" />
+                    </LinearLayout>
+
+                    <Button
+                        android:id="@+id/save_activity_button"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/save_activity"
+                        style="@style/PrimaryButton" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <androidx.cardview.widget.CardView
+                style="@style/DashboardCard"
+                android:layout_marginTop="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/recent_activities"
+                        style="@style/TitleText"
+                        android:layout_marginBottom="8dp" />
+
+                    <TextView
+                        android:id="@+id/no_recent_activities_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/no_recent_activities"
+                        android:textColor="@color/secondary_text"
+                        android:gravity="center"
+                        android:padding="16dp" />
+
+                    <!-- Aquí iría un RecyclerView para mostrar actividades recientes -->
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+        </LinearLayout>
+    </ScrollView>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottom_navigation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp">
+        android:background="@color/white"
+        app:itemIconTint="@color/primary"
+        app:itemTextColor="@color/primary"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:menu="@menu/bottom_navigation_menu" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Track Physical Activity"
-            android:textSize="24sp"
-            android:textStyle="bold"
-            android:gravity="center"
-            android:layout_marginBottom="24dp" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Activity Type"
-            android:textSize="16sp"
-            android:layout_marginTop="8dp" />
-
-        <Spinner
-            android:id="@+id/activity_type_spinner"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:entries="@array/activity_types" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Duration (minutes)"
-            android:textSize="16sp"
-            android:layout_marginTop="16dp" />
-
-        <EditText
-            android:id="@+id/duration_edit_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:inputType="number"
-            android:hint="Enter duration" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Calories Burned"
-            android:textSize="16sp"
-            android:layout_marginTop="16dp" />
-
-        <EditText
-            android:id="@+id/calories_edit_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:inputType="number"
-            android:hint="Enter calories burned" />
-
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Notes"
-            android:textSize="16sp"
-            android:layout_marginTop="16dp" />
-
-        <EditText
-            android:id="@+id/notes_edit_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:inputType="textMultiLine"
-            android:lines="3"
-            android:gravity="top"
-            android:hint="Enter any notes about this activity" />
-
-        <Button
-            android:id="@+id/save_button"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:text="Save Activity"
-            android:background="@drawable/rounded_button_bg" />
-
-    </LinearLayout>
-</ScrollView> 
+</androidx.constraintlayout.widget.ConstraintLayout>

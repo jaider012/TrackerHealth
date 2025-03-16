@@ -20,7 +20,7 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
 
         bottomNavigationView = findViewById(R.id.bottom_navigation);
         bottomNavigationView.setOnNavigationItemSelectedListener(this);
-
+        
         // Set Dashboard as selected by default
         bottomNavigationView.setSelectedItemId(R.id.navigation_dashboard);
     }
@@ -28,27 +28,25 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
         Intent intent;
-
-        switch (item.getItemId()) {
-            case R.id.navigation_dashboard:
-                return true;
-
-            case R.id.navigation_activity:
-                intent = new Intent(this, PhysicalActivityTracker.class);
-                startActivity(intent);
-                return true;
-
-            case R.id.navigation_food:
-                intent = new Intent(this, FoodTrackerActivity.class);
-                startActivity(intent);
-                return true;
-
-            case R.id.navigation_reports:
-                intent = new Intent(this, ReportsActivity.class);
-                startActivity(intent);
-                return true;
+        
+        int itemId = item.getItemId();
+        
+        if (itemId == R.id.navigation_dashboard) {
+            return true;
+        } else if (itemId == R.id.navigation_activity) {
+            intent = new Intent(this, PhysicalActivityTracker.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.navigation_food) {
+            intent = new Intent(this, FoodTrackerActivity.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.navigation_reports) {
+            intent = new Intent(this, ReportsActivity.class);
+            startActivity(intent);
+            return true;
         }
-
+        
         return false;
     }
-}Ï
+}

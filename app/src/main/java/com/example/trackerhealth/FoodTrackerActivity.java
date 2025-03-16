@@ -1,62 +1,82 @@
 package com.example.trackerhealth;
 
+import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
+import android.view.MenuItem;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-public class FoodTrackerActivity extends AppCompatActivity {
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+public class FoodTrackerActivity extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener {
+
+    private BottomNavigationView bottomNavigationView;
     private Spinner mealTypeSpinner;
-    private EditText foodNameEditText;
-    private EditText caloriesEditText;
-    private EditText proteinEditText;
-    private EditText carbsEditText;
-    private EditText fatsEditText;
-    private Button saveButton;
+    private Button takePhotoButton;
+    private Button saveMealButton;
+    private ImageView foodPhotoPreview;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_food_tracker);
 
-        // Initialize UI components
+        // Inicializar componentes
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
         mealTypeSpinner = findViewById(R.id.meal_type_spinner);
-        foodNameEditText = findViewById(R.id.food_name_edit_text);
-        caloriesEditText = findViewById(R.id.calories_edit_text);
-        proteinEditText = findViewById(R.id.protein_edit_text);
-        carbsEditText = findViewById(R.id.carbs_edit_text);
-        fatsEditText = findViewById(R.id.fats_edit_text);
-        saveButton = findViewById(R.id.save_button);
+        takePhotoButton = findViewById(R.id.take_photo_button);
+        saveMealButton = findViewById(R.id.save_meal_button);
+        foodPhotoPreview = findViewById(R.id.food_photo_preview);
 
-        saveButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                saveFoodData();
-            }
+        // Configurar bottom navigation
+        bottomNavigationView.setOnNavigationItemSelectedListener(this);
+        bottomNavigationView.setSelectedItemId(R.id.navigation_food);
+
+        // Configurar spinner de tipos de comida
+        String[] mealTypes = {"Breakfast", "Lunch", "Dinner", "Snack"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, mealTypes);
+        mealTypeSpinner.setAdapter(adapter);
+
+        // Configurar botón de foto
+        takePhotoButton.setOnClickListener(v -> {
+            // Aquí se abriría la cámara (en una implementación real)
+            Toast.makeText(this, "Camera functionality would open here", Toast.LENGTH_SHORT).show();
+        });
+
+        // Configurar botón de guardar
+        saveMealButton.setOnClickListener(v -> {
+            Toast.makeText(this, "Meal saved successfully", Toast.LENGTH_SHORT).show();
         });
     }
 
-    private void saveFoodData() {
-        String mealType = mealTypeSpinner.getSelectedItem().toString();
-        String foodName = foodNameEditText.getText().toString();
-        String calories = caloriesEditText.getText().toString();
-        String protein = proteinEditText.getText().toString();
-        String carbs = carbsEditText.getText().toString();
-        String fats = fatsEditText.getText().toString();
-
-        // Validate inputs
-        if (mealType.isEmpty() || foodName.isEmpty() || calories.isEmpty()) {
-            Toast.makeText(this, "Please fill required fields", Toast.LENGTH_SHORT).show();
-            return;
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        Intent intent;
+        
+        int itemId = item.getItemId();
+        
+        if (itemId == R.id.navigation_dashboard) {
+            intent = new Intent(this, DashboardActivity.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.navigation_activity) {
+            intent = new Intent(this, PhysicalActivityTracker.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.navigation_food) {
+            return true;
+        } else if (itemId == R.id.navigation_reports) {
+            intent = new Intent(this, ReportsActivity.class);
+            startActivity(intent);
+            return true;
         }
-
-        // TODO: Save food data to database
-
-        Toast.makeText(this, "Food entry saved successfully", Toast.LENGTH_SHORT).show();
-        finish();
+        
+        return false;
     }
-} 
+}
