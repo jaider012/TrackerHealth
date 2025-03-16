@@ -17,4 +17,65 @@
     <string name="daily_summary">Daily Summary</string>
     <string name="weekly_summary">Weekly Summary</string>
     <string name="monthly_summary">Monthly Summary</string>
+    
+    <!-- Activity strings -->
+    <string name="track_activity">Track Physical Activity</string>
+    <string name="activity_type">Activity Type</string>
+    <string name="duration_minutes">Duration (minutes)</string>
+    <string name="distance_km">Distance (km)</string>
+    <string name="enter_duration">Enter duration</string>
+    <string name="enter_distance">Enter distance</string>
+    <string name="use_gps_tracking">Use GPS tracking</string>
+    <string name="gps_tracking">GPS Tracking</string>
+    <string name="start_tracking">Start Tracking</string>
+    <string name="stop_tracking">Stop Tracking</string>
+    <string name="save_activity">Save Activity</string>
+    <string name="recent_activities">Recent Activities</string>
+    <string name="no_recent_activities">No recent activities recorded</string>
+    
+    <!-- Food strings -->
+    <string name="track_food">Track Food Intake</string>
+    <string name="add_meal">Add Meal</string>
+    <string name="food_name">Food Name</string>
+    <string name="calories">Calories</string>
+    <string name="enter_food_name">Enter food name</string>
+    <string name="enter_calories">Enter calories</string>
+    <string name="food_photo">Food Photo</string>
+    <string name="take_photo">Take Photo</string>
+    <string name="save_meal">Save Meal</string>
+    <string name="todays_meals">Today\'s Meals</string>
+    <string name="no_meals_recorded">No meals recorded today</string>
+    
+    <!-- Reports strings -->
+    <string name="reports_statistics">Reports &amp; Statistics</string>
+    <string name="activity_summary">Activity Summary</string>
+    <string name="nutrition_summary">Nutrition Summary</string>
+    <string name="total_activities">Total Activities</string>
+    <string name="total_distance_km">Total Distance (km)</string>
+    <string name="avg_calories_day">Avg. Calories/Day</string>
+    <string name="total_meals">Total Meals</string>
+    <string name="export_data">Export Data</string>
+    
+    <!-- Bottom navigation titles -->
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_activity">Activity</string>
+    <string name="title_food">Food</string>
+    <string name="title_reports">Reports</string>
+    
+    <!-- Login screen strings -->
+    <string name="app_logo">App Logo</string>
+    <string name="email_hint">Enter your email</string>
+    <string name="password_hint">Enter your password</string>
+    <string name="login_button">Login</string>
+    <string name="register_prompt">Don\'t have an account? Register here</string>
+    
+    <!-- Dashboard strings -->
+    <string name="today_summary">Today\'s Summary</string>
+    <string name="steps">Steps</string>
+    <string name="exercises">Exercises</string>
+    <string name="calories_burned">Calories Burned</string>
+    <string name="calories_consumed">Calories Consumed</string>
+    <string name="water_intake">Water Intake</string>
+    <string name="sleep_hours">Sleep Hours</string>
+    <string name="view_all">View All</string>
 </resources>
