@@ -78,4 +78,9 @@
     <string name="water_intake">Water Intake</string>
     <string name="sleep_hours">Sleep Hours</string>
     <string name="view_all">View All</string>
+    
+    <!-- Error messages -->
+    <string name="error_field_required">Este campo es obligatorio</string>
+    <string name="error_invalid_email">El email no es válido</string>
+    <string name="error_login_failed">Error de inicio de sesión. Verifica tus credenciales</string>
 </resources>
