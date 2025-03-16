@@ -14,6 +14,7 @@
     <string name="save">Save</string>
     <string name="cancel">Cancel</string>
     <string name="welcome_message">Welcome to TrackerHealth!</string>
+    <string name="welcome_user">Welcome, %1$s!</string>
     <string name="daily_summary">Daily Summary</string>
     <string name="weekly_summary">Weekly Summary</string>
     <string name="monthly_summary">Monthly Summary</string>
