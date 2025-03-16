@@ -1,74 +1,71 @@
 package com.example.trackerhealth;
 
+import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
+import android.view.MenuItem;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.TextView;
+import android.widget.Spinner;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
-public class ReportsActivity extends AppCompatActivity {
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
-    private TextView caloriesConsumedTextView;
-    private TextView caloriesBurnedTextView;
-    private TextView netCaloriesTextView;
-    private TextView activitySummaryTextView;
-    private TextView nutritionSummaryTextView;
-    private Button weeklyReportButton;
-    private Button monthlyReportButton;
+public class ReportsActivity extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener {
+
+    private BottomNavigationView bottomNavigationView;
+    private Spinner timePeriodSpinner;
+    private Button exportDataButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_reports);
 
-        // Initialize UI components
-        caloriesConsumedTextView = findViewById(R.id.calories_consumed_text_view);
-        caloriesBurnedTextView = findViewById(R.id.calories_burned_text_view);
-        netCaloriesTextView = findViewById(R.id.net_calories_text_view);
-        activitySummaryTextView = findViewById(R.id.activity_summary_text_view);
-        nutritionSummaryTextView = findViewById(R.id.nutrition_summary_text_view);
-        weeklyReportButton = findViewById(R.id.weekly_report_button);
-        monthlyReportButton = findViewById(R.id.monthly_report_button);
+        // Inicializar componentes
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
+        timePeriodSpinner = findViewById(R.id.time_period_spinner);
+        exportDataButton = findViewById(R.id.export_data_button);
 
-        weeklyReportButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                loadWeeklyReport();
-            }
+        // Configurar bottom navigation
+        bottomNavigationView.setOnNavigationItemSelectedListener(this);
+        bottomNavigationView.setSelectedItemId(R.id.navigation_reports);
+
+        // Configurar spinner de períodos de tiempo
+        String[] timePeriods = {"Last 7 days", "Last 30 days", "Last 3 months", "Last year"};
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, timePeriods);
+        timePeriodSpinner.setAdapter(adapter);
+
+        // Configurar botón de exportación
+        exportDataButton.setOnClickListener(v -> {
+            Toast.makeText(this, "Data exported successfully", Toast.LENGTH_SHORT).show();
         });
-
-        monthlyReportButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                loadMonthlyReport();
-            }
-        });
-
-        // Load default report (daily)
-        loadDailyReport();
     }
 
-    private void loadDailyReport() {
-        // TODO: Load daily report data from database
-        updateReportUI(0, 0, "No activities recorded today", "No meals recorded today");
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        Intent intent;
+        
+        int itemId = item.getItemId();
+        
+        if (itemId == R.id.navigation_dashboard) {
+            intent = new Intent(this, DashboardActivity.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.navigation_activity) {
+            intent = new Intent(this, PhysicalActivityTracker.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.navigation_food) {
+            intent = new Intent(this, FoodTrackerActivity.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.navigation_reports) {
+            return true;
+        }
+        
+        return false;
     }
-
-    private void loadWeeklyReport() {
-        // TODO: Load weekly report data from database
-        updateReportUI(0, 0, "No activities recorded this week", "No meals recorded this week");
-    }
-
-    private void loadMonthlyReport() {
-        // TODO: Load monthly report data from database
-        updateReportUI(0, 0, "No activities recorded this month", "No meals recorded this month");
-    }
-
-    private void updateReportUI(int caloriesConsumed, int caloriesBurned, 
-                               String activitySummary, String nutritionSummary) {
-        caloriesConsumedTextView.setText(String.valueOf(caloriesConsumed));
-        caloriesBurnedTextView.setText(String.valueOf(caloriesBurned));
-        netCaloriesTextView.setText(String.valueOf(caloriesConsumed - caloriesBurned));
-        activitySummaryTextView.setText(activitySummary);
-        nutritionSummaryTextView.setText(nutritionSummary);
-    }
-} 
+}
