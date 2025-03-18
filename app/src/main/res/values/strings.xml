@@ -33,6 +33,12 @@
     <string name="save_activity">Save Activity</string>
     <string name="recent_activities">Recent Activities</string>
     <string name="no_recent_activities">No recent activities recorded</string>
+    <string name="activity_photo">Activity Photo</string>
+    <string name="choose_from_gallery">Choose from Gallery</string>
+    <string name="take_picture">Take Picture</string>
+    <string name="add_photo">Add Photo</string>
+    <string name="photo_permission_required">Camera permission is required to take photos</string>
+    <string name="storage_permission_required">Storage permission is required to access gallery</string>
     
     <!-- Food strings -->
     <string name="track_food">Track Food Intake</string>
