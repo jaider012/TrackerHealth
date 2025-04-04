@@ -11,6 +11,7 @@ import android.os.Environment;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -44,7 +45,9 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
 public class PhysicalActivityTracker extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener {
@@ -90,6 +93,7 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private double currentLatitude;
     private double currentLongitude;
     private long startTimeMillis;
+    private List<Location> locationHistory = new ArrayList<>(); // Lista para almacenar el historial de ubicaciones
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -201,6 +205,9 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                     currentLatitude = currentLocation.getLatitude();
                     currentLongitude = currentLocation.getLongitude();
                     
+                    // Guardar ubicación en el historial
+                    locationHistory.add(currentLocation);
+                    
                     // Actualizar interfaz de usuario con datos de ubicación
                     updateLocationUI(currentLocation);
                     
@@ -275,6 +282,9 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
             startTimeMillis = System.currentTimeMillis();
             totalDistance = 0;
             lastLocation = null;
+            
+            // Limpiar historial de ubicaciones anterior
+            locationHistory.clear();
             
             // Cambiar texto del botón
             startTrackingButton.setText(R.string.stop_tracking);
@@ -514,18 +524,18 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
             
             // Valores opcionales
             double distance = 0;
-            int calories = 0; // Estimación de calorías basada en la duración y tipo de actividad
+            int calories = 0;
             String notes = "";
             
             if (distanceEditText != null && !TextUtils.isEmpty(distanceEditText.getText())) {
                 distance = Double.parseDouble(distanceEditText.getText().toString());
             }
             
-            // Si usamos GPS, añadir la ubicación a las notas
+            // Si usamos GPS, añadir metadatos a las notas
             if (useGpsCheckbox.isChecked() && currentLatitude != 0 && currentLongitude != 0) {
                 notes = String.format(Locale.getDefault(), 
-                        "lastLocation:%.6f,%.6f;totalDistance:%.2f", 
-                        currentLatitude, currentLongitude, totalDistance);
+                        "totalDistance:%.2f;trackingEnabled:true", 
+                        totalDistance);
             }
             
             // Estimación simple de calorías quemadas
@@ -542,17 +552,36 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
             // Crear el objeto de actividad
             PhysicalActivity activity = new PhysicalActivity(userId, activityType, duration, calories, distance, notes);
             
+            // Establecer coordenadas GPS si están disponibles
+            if (useGpsCheckbox.isChecked() && currentLatitude != 0 && currentLongitude != 0) {
+                activity.setLatitude(currentLatitude);
+                activity.setLongitude(currentLongitude);
+            }
+            
             // Guardar en la base de datos
             long activityId = activityDAO.insertActivity(activity);
             
             if (activityId > 0) {
                 String message = "Actividad guardada";
+                
+                // Si tenemos datos de ruta GPS, guardarlos en un archivo separado
+                if (useGpsCheckbox.isChecked() && !locationHistory.isEmpty()) {
+                    String routeFilePath = com.example.trackerhealth.util.LocationTrackingUtil.saveRouteData(
+                            this, 
+                            activityId, 
+                            locationHistory
+                    );
+                    
+                    if (routeFilePath != null) {
+                        message += " con ruta GPS";
+                        Log.d("PhysicalActivityTracker", "Ruta guardada en: " + routeFilePath);
+                    }
+                }
+                
                 if (photoUri != null) {
                     message += " con foto";
                 }
-                if (useGpsCheckbox.isChecked()) {
-                    message += " y datos de ubicación";
-                }
+                
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
                 
                 // Detener tracking si está activo
@@ -563,6 +592,9 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                 // Limpiar campos después de guardar
                 clearFields();
                 resetPhotoPreview();
+                
+                // Limpiar historial de ubicaciones
+                locationHistory.clear();
             } else {
                 Toast.makeText(this, "Error al guardar la actividad", Toast.LENGTH_SHORT).show();
             }
@@ -614,6 +646,8 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         
         // Resetear variables de ubicación
         totalDistance = 0;
+        locationHistory.clear();
+        
         if (totalDistanceTextView != null) {
             totalDistanceTextView.setText("0.00 km");
         }

@@ -149,6 +149,45 @@ public class PhysicalActivity {
         }
         return 0;
     }
+    
+    /**
+     * Verifica si la actividad tiene datos de ubicación GPS
+     * @return true si la actividad tiene coordenadas válidas
+     */
+    public boolean hasLocationData() {
+        return latitude != 0 && longitude != 0;
+    }
+    
+    /**
+     * Devuelve una cadena formateada con las coordenadas GPS
+     * @return Cadena con formato "latitud,longitud"
+     */
+    public String getLocationString() {
+        if (hasLocationData()) {
+            return String.format("%.6f,%.6f", latitude, longitude);
+        }
+        return "";
+    }
+    
+    /**
+     * Extrae información específica de las notas
+     * @param key La clave a buscar en las notas (ejemplo: "totalDistance")
+     * @return El valor correspondiente a la clave o cadena vacía si no se encuentra
+     */
+    public String getInfoFromNotes(String key) {
+        if (notes == null || notes.isEmpty()) {
+            return "";
+        }
+        
+        String[] parts = notes.split(";");
+        for (String part : parts) {
+            if (part.startsWith(key + ":")) {
+                return part.substring(key.length() + 1);
+            }
+        }
+        
+        return "";
+    }
 
     @Override
     public String toString() {

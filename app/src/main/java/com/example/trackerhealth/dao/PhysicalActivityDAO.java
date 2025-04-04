@@ -258,6 +258,76 @@ public class PhysicalActivityDAO {
     }
     
     /**
+     * Obtiene actividades físicas con datos de ubicación GPS para el usuario
+     *
+     * @param userId El ID del usuario
+     * @return Lista de actividades físicas con datos de ubicación
+     */
+    public List<PhysicalActivity> getActivitiesWithLocation(long userId) {
+        String SELECT_QUERY = "SELECT * FROM " + DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES +
+                " WHERE " + DatabaseHelper.KEY_ACTIVITY_USER_ID_FK + " = ?" +
+                " AND " + DatabaseHelper.KEY_ACTIVITY_LATITUDE + " IS NOT NULL" +
+                " AND " + DatabaseHelper.KEY_ACTIVITY_LONGITUDE + " IS NOT NULL" +
+                " ORDER BY " + DatabaseHelper.KEY_ACTIVITY_DATE + " DESC";
+        
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        List<PhysicalActivity> activities = new ArrayList<>();
+        Cursor cursor = null;
+        
+        try {
+            cursor = db.rawQuery(SELECT_QUERY, new String[]{String.valueOf(userId)});
+            if (cursor != null && cursor.moveToFirst()) {
+                do {
+                    PhysicalActivity activity = getActivityFromCursor(cursor);
+                    activities.add(activity);
+                } while (cursor.moveToNext());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error al obtener actividades con ubicación: " + e.getMessage());
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        
+        return activities;
+    }
+    
+    /**
+     * Obtiene las estadísticas de ubicación GPS para un usuario
+     * @param userId El ID del usuario
+     * @return Un array con [distancia total, actividades con GPS]
+     */
+    public double[] getLocationStats(long userId) {
+        String SELECT_QUERY = "SELECT COUNT(*) as count, SUM(" + 
+                DatabaseHelper.KEY_ACTIVITY_DISTANCE + ") as total_distance " +
+                " FROM " + DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES +
+                " WHERE " + DatabaseHelper.KEY_ACTIVITY_USER_ID_FK + " = ?" +
+                " AND " + DatabaseHelper.KEY_ACTIVITY_LATITUDE + " IS NOT NULL" +
+                " AND " + DatabaseHelper.KEY_ACTIVITY_LONGITUDE + " IS NOT NULL";
+        
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        double[] stats = new double[2]; // [total_distance, count]
+        Cursor cursor = null;
+        
+        try {
+            cursor = db.rawQuery(SELECT_QUERY, new String[]{String.valueOf(userId)});
+            if (cursor != null && cursor.moveToFirst()) {
+                stats[0] = cursor.isNull(1) ? 0 : cursor.getDouble(1); // total_distance
+                stats[1] = cursor.getInt(0); // count
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error al obtener estadísticas de ubicación: " + e.getMessage());
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        
+        return stats;
+    }
+    
+    /**
      * Método auxiliar para obtener una actividad física a partir de un cursor
      */
     private PhysicalActivity getActivityFromCursor(Cursor cursor) {
