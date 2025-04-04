@@ -80,6 +80,37 @@
                         android:hint="@string/enter_distance"
                         android:layout_marginBottom="16dp" />
 
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/activity_photo"
+                        style="@style/SubtitleText"
+                        android:layout_marginBottom="8dp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="16dp">
+
+                        <ImageView
+                            android:id="@+id/activity_photo_preview"
+                            android:layout_width="100dp"
+                            android:layout_height="100dp"
+                            android:background="@color/light_gray"
+                            android:scaleType="centerCrop"
+                            android:layout_marginEnd="16dp"
+                            android:contentDescription="@string/activity_photo"
+                            android:src="@android:drawable/ic_menu_camera" />
+
+                        <Button
+                            android:id="@+id/take_photo_button"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/take_photo"
+                            android:layout_gravity="center_vertical" />
+                    </LinearLayout>
+
                     <CheckBox
                         android:id="@+id/use_gps_checkbox"
                         android:layout_width="match_parent"
@@ -101,10 +132,88 @@
                             style="@style/SubtitleText"
                             android:layout_marginBottom="8dp" />
 
-                        <!-- Aquí iría un mapa o visualización de ruta -->
+                        <!-- GPS status -->
+                        <androidx.cardview.widget.CardView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="12dp"
+                            app:cardCornerRadius="8dp"
+                            app:cardElevation="2dp">
+                            
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical"
+                                android:padding="12dp">
+                                
+                                <!-- Current location -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:layout_marginBottom="8dp">
+                                    
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Location:"
+                                        android:textStyle="bold"
+                                        android:layout_marginEnd="8dp"/>
+                                    
+                                    <TextView
+                                        android:id="@+id/location_status_text"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="Waiting for GPS..." />
+                                </LinearLayout>
+                                
+                                <!-- Current speed -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:layout_marginBottom="8dp">
+                                    
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Current speed:"
+                                        android:textStyle="bold"
+                                        android:layout_marginEnd="8dp"/>
+                                    
+                                    <TextView
+                                        android:id="@+id/current_speed_text"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="0.0 km/h" />
+                                </LinearLayout>
+                                
+                                <!-- Total distance -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal">
+                                    
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Total distance:"
+                                        android:textStyle="bold"
+                                        android:layout_marginEnd="8dp"/>
+                                    
+                                    <TextView
+                                        android:id="@+id/total_distance_text"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="wrap_content"
+                                        android:text="0.00 km" />
+                                </LinearLayout>
+                            </LinearLayout>
+                        </androidx.cardview.widget.CardView>
+
+                        <!-- Future map or visualization placeholder -->
                         <View
                             android:layout_width="match_parent"
-                            android:layout_height="200dp"
+                            android:layout_height="150dp"
                             android:background="@color/light_gray"
                             android:layout_marginBottom="16dp" />
 
