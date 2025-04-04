@@ -40,6 +40,8 @@ public class PhysicalActivityDAO {
             values.put(DatabaseHelper.KEY_ACTIVITY_CALORIES, activity.getCaloriesBurned());
             values.put(DatabaseHelper.KEY_ACTIVITY_DISTANCE, activity.getDistance());
             values.put(DatabaseHelper.KEY_ACTIVITY_NOTES, activity.getNotes());
+            values.put(DatabaseHelper.KEY_ACTIVITY_LATITUDE, activity.getLatitude());
+            values.put(DatabaseHelper.KEY_ACTIVITY_LONGITUDE, activity.getLongitude());
             
             // Insertar la fila
             activityId = db.insertOrThrow(DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES, null, values);
@@ -71,6 +73,8 @@ public class PhysicalActivityDAO {
             values.put(DatabaseHelper.KEY_ACTIVITY_CALORIES, activity.getCaloriesBurned());
             values.put(DatabaseHelper.KEY_ACTIVITY_DISTANCE, activity.getDistance());
             values.put(DatabaseHelper.KEY_ACTIVITY_NOTES, activity.getNotes());
+            values.put(DatabaseHelper.KEY_ACTIVITY_LATITUDE, activity.getLatitude());
+            values.put(DatabaseHelper.KEY_ACTIVITY_LONGITUDE, activity.getLongitude());
             
             // Actualizar la fila
             String selection = DatabaseHelper.KEY_ACTIVITY_ID + " = ?";
@@ -276,6 +280,23 @@ public class PhysicalActivityDAO {
         
         if (!cursor.isNull(notesIndex)) {
             activity.setNotes(cursor.getString(notesIndex));
+        }
+        
+        // Campos de ubicación
+        try {
+            int latIndex = cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_LATITUDE);
+            int lngIndex = cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_LONGITUDE);
+            
+            if (!cursor.isNull(latIndex)) {
+                activity.setLatitude(cursor.getDouble(latIndex));
+            }
+            
+            if (!cursor.isNull(lngIndex)) {
+                activity.setLongitude(cursor.getDouble(lngIndex));
+            }
+        } catch (IllegalArgumentException e) {
+            // Las columnas de ubicación podrían no existir en versiones anteriores de la base de datos
+            Log.w(TAG, "Las columnas de ubicación no están disponibles en esta versión de la base de datos");
         }
         
         return activity;

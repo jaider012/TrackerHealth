@@ -4,9 +4,11 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.view.MenuItem;
@@ -18,6 +20,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -30,6 +33,12 @@ import androidx.core.content.FileProvider;
 
 import com.example.trackerhealth.dao.PhysicalActivityDAO;
 import com.example.trackerhealth.model.PhysicalActivity;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.Priority;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.io.File;
@@ -50,6 +59,9 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private Button saveActivityButton;
     private Button takePhotoButton;
     private ImageView activityPhotoPreview;
+    private TextView locationStatusTextView;
+    private TextView currentSpeedTextView;
+    private TextView totalDistanceTextView;
     
     private PhysicalActivityDAO activityDAO;
     
@@ -62,10 +74,22 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private static final int REQUEST_PICK_IMAGE = 2;
     private static final int REQUEST_CAMERA_PERMISSION = 101;
     private static final int REQUEST_STORAGE_PERMISSION = 102;
+    private static final int REQUEST_LOCATION_PERMISSION = 103;
     
     // Variables para manejo de imágenes
     private String currentPhotoPath;
     private Uri photoUri;
+    
+    // Variables para ubicación
+    private FusedLocationProviderClient fusedLocationClient;
+    private LocationRequest locationRequest;
+    private LocationCallback locationCallback;
+    private boolean isTrackingLocation = false;
+    private Location lastLocation;
+    private float totalDistance = 0;
+    private double currentLatitude;
+    private double currentLongitude;
+    private long startTimeMillis;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -86,6 +110,11 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         saveActivityButton = findViewById(R.id.save_activity_button);
         takePhotoButton = findViewById(R.id.take_photo_button);
         activityPhotoPreview = findViewById(R.id.activity_photo_preview);
+        
+        // Inicializar componentes de ubicación
+        locationStatusTextView = findViewById(R.id.location_status_text);
+        currentSpeedTextView = findViewById(R.id.current_speed_text);
+        totalDistanceTextView = findViewById(R.id.total_distance_text);
 
         // Configurar bottom navigation
         bottomNavigationView.setOnNavigationItemSelectedListener(this);
@@ -96,22 +125,38 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, activityTypes);
         activityTypeSpinner.setAdapter(adapter);
 
+        // Inicializar el cliente de ubicación fusionada
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+        
+        // Configurar solicitud de ubicación
+        createLocationRequest();
+        
+        // Configurar callback de ubicación
+        createLocationCallback();
+        
         // Configurar checkbox de GPS
         if (useGpsCheckbox != null && gpsContainer != null) {
             useGpsCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 gpsContainer.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+                
+                if (isChecked && !checkLocationPermission()) {
+                    requestLocationPermission();
+                }
             });
         }
 
         // Configurar botón de tracking
         if (startTrackingButton != null) {
             startTrackingButton.setOnClickListener(v -> {
-                if (startTrackingButton.getText().equals(getString(R.string.start_tracking))) {
-                    startTrackingButton.setText(R.string.stop_tracking);
-                    Toast.makeText(this, "GPS tracking started", Toast.LENGTH_SHORT).show();
+                if (!isTrackingLocation) {
+                    // Verificar permisos antes de iniciar el seguimiento
+                    if (checkLocationPermission()) {
+                        startLocationTracking();
+                    } else {
+                        requestLocationPermission();
+                    }
                 } else {
-                    startTrackingButton.setText(R.string.start_tracking);
-                    Toast.makeText(this, "GPS tracking stopped", Toast.LENGTH_SHORT).show();
+                    stopLocationTracking();
                 }
             });
         }
@@ -129,6 +174,145 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         });
     }
     
+    /**
+     * Configura los parámetros de solicitud de ubicación
+     */
+    private void createLocationRequest() {
+        locationRequest = new LocationRequest.Builder(5000) // Actualizaciones cada 5 segundos
+            .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
+            .setMinUpdateIntervalMillis(2000) // Mínimo 2 segundos entre actualizaciones
+            .setMaxUpdateDelayMillis(10000) // Máximo retraso de 10 segundos
+            .build();
+    }
+    
+    /**
+     * Configura el callback para recibir actualizaciones de ubicación
+     */
+    private void createLocationCallback() {
+        locationCallback = new LocationCallback() {
+            @Override
+            public void onLocationResult(@NonNull LocationResult locationResult) {
+                super.onLocationResult(locationResult);
+                
+                if (locationResult.getLastLocation() != null) {
+                    Location currentLocation = locationResult.getLastLocation();
+                    
+                    // Actualizar latitud y longitud actuales
+                    currentLatitude = currentLocation.getLatitude();
+                    currentLongitude = currentLocation.getLongitude();
+                    
+                    // Actualizar interfaz de usuario con datos de ubicación
+                    updateLocationUI(currentLocation);
+                    
+                    // Calcular distancia si hay una ubicación anterior
+                    if (lastLocation != null) {
+                        float distance = lastLocation.distanceTo(currentLocation);
+                        totalDistance += distance / 1000; // Convertir a kilómetros
+                    }
+                    
+                    // Guardar ubicación actual como última ubicación
+                    lastLocation = currentLocation;
+                }
+            }
+        };
+    }
+    
+    /**
+     * Actualiza la UI con la información de ubicación
+     */
+    private void updateLocationUI(Location location) {
+        if (location != null && locationStatusTextView != null) {
+            // Mostrar coordenadas
+            String locationText = String.format(Locale.getDefault(), 
+                    "Lat: %.6f, Lng: %.6f", 
+                    location.getLatitude(), 
+                    location.getLongitude());
+            locationStatusTextView.setText(locationText);
+            
+            // Mostrar velocidad actual
+            if (currentSpeedTextView != null) {
+                float speedKmh = location.hasSpeed() ? 
+                        location.getSpeed() * 3.6f : 0; // m/s a km/h
+                String speedText = String.format(Locale.getDefault(), 
+                        "%.1f km/h", speedKmh);
+                currentSpeedTextView.setText(speedText);
+            }
+            
+            // Mostrar distancia total
+            if (totalDistanceTextView != null) {
+                String distanceText = String.format(Locale.getDefault(), 
+                        "%.2f km", totalDistance);
+                totalDistanceTextView.setText(distanceText);
+                
+                // Actualizar también el campo de distancia
+                if (distanceEditText != null) {
+                    distanceEditText.setText(String.format(Locale.getDefault(), "%.2f", totalDistance));
+                }
+            }
+            
+            // Calcular duración si estamos rastreando
+            if (isTrackingLocation && durationEditText != null) {
+                long elapsedMillis = System.currentTimeMillis() - startTimeMillis;
+                int minutes = (int) (elapsedMillis / 60000); // Convertir a minutos
+                durationEditText.setText(String.valueOf(minutes));
+            }
+        }
+    }
+    
+    /**
+     * Inicia el seguimiento de ubicación
+     */
+    private void startLocationTracking() {
+        if (checkLocationPermission()) {
+            fusedLocationClient.requestLocationUpdates(
+                    locationRequest,
+                    locationCallback,
+                    Looper.getMainLooper()
+            );
+            
+            // Actualizar estado y UI
+            isTrackingLocation = true;
+            startTimeMillis = System.currentTimeMillis();
+            totalDistance = 0;
+            lastLocation = null;
+            
+            // Cambiar texto del botón
+            startTrackingButton.setText(R.string.stop_tracking);
+            Toast.makeText(this, "GPS tracking started", Toast.LENGTH_SHORT).show();
+        } else {
+            requestLocationPermission();
+        }
+    }
+    
+    /**
+     * Detiene el seguimiento de ubicación
+     */
+    private void stopLocationTracking() {
+        fusedLocationClient.removeLocationUpdates(locationCallback);
+        
+        // Actualizar estado y UI
+        isTrackingLocation = false;
+        startTrackingButton.setText(R.string.start_tracking);
+        Toast.makeText(this, "GPS tracking stopped", Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
+     * Verifica si tenemos el permiso de ubicación
+     */
+    private boolean checkLocationPermission() {
+        return ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) 
+                == PackageManager.PERMISSION_GRANTED;
+    }
+    
+    /**
+     * Solicita el permiso de ubicación
+     */
+    private void requestLocationPermission() {
+        ActivityCompat.requestPermissions(this, 
+                new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, 
+                REQUEST_LOCATION_PERMISSION);
+    }
+
     /**
      * Muestra un diálogo para elegir la fuente de la imagen (cámara o galería)
      */
@@ -290,6 +474,16 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
             } else {
                 Toast.makeText(this, "Se requiere permiso de almacenamiento para acceder a la galería", Toast.LENGTH_SHORT).show();
             }
+        } else if (requestCode == REQUEST_LOCATION_PERMISSION) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Si se concede el permiso, iniciar el seguimiento
+                if (isTrackingLocation) {
+                    startLocationTracking();
+                }
+            } else {
+                Toast.makeText(this, "Se requiere permiso de ubicación para rastrear tu actividad", Toast.LENGTH_SHORT).show();
+                useGpsCheckbox.setChecked(false);
+            }
         }
     }
     
@@ -327,12 +521,22 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                 distance = Double.parseDouble(distanceEditText.getText().toString());
             }
             
-            // Estimación simple de calorías quemadas (esto debería ser más sofisticado en una app real)
+            // Si usamos GPS, añadir la ubicación a las notas
+            if (useGpsCheckbox.isChecked() && currentLatitude != 0 && currentLongitude != 0) {
+                notes = String.format(Locale.getDefault(), 
+                        "lastLocation:%.6f,%.6f;totalDistance:%.2f", 
+                        currentLatitude, currentLongitude, totalDistance);
+            }
+            
+            // Estimación simple de calorías quemadas
             calories = estimateCaloriesBurned(activityType, duration, distance);
             
             // Añadir path de imagen si existe
             if (photoUri != null) {
-                notes = "imagePath:" + (currentPhotoPath != null ? currentPhotoPath : photoUri.toString());
+                if (!TextUtils.isEmpty(notes)) {
+                    notes += ";";
+                }
+                notes += "imagePath:" + (currentPhotoPath != null ? currentPhotoPath : photoUri.toString());
             }
             
             // Crear el objeto de actividad
@@ -342,11 +546,20 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
             long activityId = activityDAO.insertActivity(activity);
             
             if (activityId > 0) {
+                String message = "Actividad guardada";
                 if (photoUri != null) {
-                    Toast.makeText(this, "Actividad guardada con foto", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(this, "Actividad guardada exitosamente", Toast.LENGTH_SHORT).show();
+                    message += " con foto";
                 }
+                if (useGpsCheckbox.isChecked()) {
+                    message += " y datos de ubicación";
+                }
+                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+                
+                // Detener tracking si está activo
+                if (isTrackingLocation) {
+                    stopLocationTracking();
+                }
+                
                 // Limpiar campos después de guardar
                 clearFields();
                 resetPhotoPreview();
@@ -397,13 +610,44 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
      */
     private void clearFields() {
         durationEditText.setText("");
+        distanceEditText.setText("");
         
-        if (distanceEditText != null) {
-            distanceEditText.setText("");
+        // Resetear variables de ubicación
+        totalDistance = 0;
+        if (totalDistanceTextView != null) {
+            totalDistanceTextView.setText("0.00 km");
+        }
+        if (currentSpeedTextView != null) {
+            currentSpeedTextView.setText("0.0 km/h");
+        }
+        if (locationStatusTextView != null) {
+            locationStatusTextView.setText("Waiting for GPS...");
         }
         
         // Volver al primer elemento del spinner
         activityTypeSpinner.setSelection(0);
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // Detener actualizaciones de ubicación si la actividad está en pausa
+        if (isTrackingLocation) {
+            fusedLocationClient.removeLocationUpdates(locationCallback);
+        }
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Reanudar actualizaciones de ubicación si el seguimiento estaba activo
+        if (isTrackingLocation && checkLocationPermission()) {
+            fusedLocationClient.requestLocationUpdates(
+                    locationRequest,
+                    locationCallback,
+                    Looper.getMainLooper()
+            );
+        }
     }
 
     @Override

@@ -12,6 +12,8 @@ public class PhysicalActivity {
     private String date;
     private String notes;
     private String photoPath; // Ruta de la imagen
+    private double latitude; // Coordenada de latitud
+    private double longitude; // Coordenada de longitud
 
     // Constructor vacío
     public PhysicalActivity() {
@@ -28,7 +30,7 @@ public class PhysicalActivity {
     }
 
     // Constructor completo
-    public PhysicalActivity(long id, long userId, String activityType, int duration, int caloriesBurned, double distance, String date, String notes, String photoPath) {
+    public PhysicalActivity(long id, long userId, String activityType, int duration, int caloriesBurned, double distance, String date, String notes, String photoPath, double latitude, double longitude) {
         this.id = id;
         this.userId = userId;
         this.activityType = activityType;
@@ -38,6 +40,8 @@ public class PhysicalActivity {
         this.date = date;
         this.notes = notes;
         this.photoPath = photoPath;
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     // Getters y setters
@@ -111,6 +115,22 @@ public class PhysicalActivity {
 
     public void setPhotoPath(String photoPath) {
         this.photoPath = photoPath;
+    }
+
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
     }
 
     // Métodos útiles
