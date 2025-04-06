@@ -90,4 +90,35 @@
     <string name="error_field_required">Este campo es obligatorio</string>
     <string name="error_invalid_email">El email no es válido</string>
     <string name="error_login_failed">Error de inicio de sesión. Verifica tus credenciales</string>
+    
+    <!-- Workout detail strings -->
+    <string name="workout_detail">Workout Detail</string>
+    <string name="running">Running</string>
+    <string name="swimming">Swimming</string>
+    <string name="cycling">Cycling</string>
+    <string name="workout_progress">Workout Progress</string>
+    <string name="monthly">Monthly</string>
+    <string name="weekly">Weekly</string>
+    <string name="daily">Daily</string>
+    <string name="workout_schedule">Workout Schedule</string>
+    <string name="back">Back</string>
+    <string name="speed_power">Speed &amp; Power</string>
+    <string name="running_at_park">Running at Park</string>
+    <string name="step_count">Daily Steps</string>
+    <string name="steps_goal">We recommend 10,000 steps daily</string>
+    
+    <!-- Map and location strings -->
+    <string name="map_not_available">Map is not available</string>
+    <string name="location_permission_required">Location permission is required for tracking</string>
+    <string name="tracking_active">GPS tracking active</string>
+    <string name="tracking_stopped">GPS tracking stopped</string>
+    <string name="current_pace">Current Pace</string>
+    <string name="total_distance">Total Distance</string>
+    <string name="current_speed">Current Speed</string>
+    <string name="heart_rate">Heart Rate</string>
+    <string name="route_saved">Your route has been saved</string>
+    <string name="route_error">Error saving your route</string>
+    
+    <!-- Running dashboard strings -->
+    <string name="welcome_back_user">Welcome back, %1$s 👋</string>
 </resources>

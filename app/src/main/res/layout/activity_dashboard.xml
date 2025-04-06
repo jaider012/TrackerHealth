@@ -33,6 +33,15 @@
                     android:textStyle="bold" />
 
                 <Button
+                    android:id="@+id/running_dashboard_button"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Running UI"
+                    android:layout_marginEnd="8dp"
+                    android:textColor="@color/white"
+                    android:background="@drawable/rounded_button_filled" />
+
+                <Button
                     android:id="@+id/logout_button"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

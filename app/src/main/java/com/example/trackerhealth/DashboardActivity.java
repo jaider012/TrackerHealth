@@ -17,6 +17,7 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
 
     private BottomNavigationView bottomNavigationView;
     private Button logoutButton;
+    private Button runningDashboardButton;
     private TextView welcomeText;
     
     // Constantes para SharedPreferences
@@ -32,6 +33,7 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
         // Inicializar vistas
         bottomNavigationView = findViewById(R.id.bottom_navigation);
         logoutButton = findViewById(R.id.logout_button);
+        runningDashboardButton = findViewById(R.id.running_dashboard_button);
         welcomeText = findViewById(R.id.welcome_text);
         
         // Configurar el mensaje de bienvenida personalizado
@@ -48,6 +50,17 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
                 logout();
             }
         });
+        
+        // Configurar el botón para ir al Running Dashboard
+        if (runningDashboardButton != null) {
+            runningDashboardButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Intent intent = new Intent(DashboardActivity.this, RunningDashboardActivity.class);
+                    startActivity(intent);
+                }
+            });
+        }
         
         // Configurar bottom navigation
         bottomNavigationView.setOnNavigationItemSelectedListener(this);
