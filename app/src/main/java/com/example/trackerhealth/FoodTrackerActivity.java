@@ -229,9 +229,26 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
     }
     
     private void requestStoragePermission() {
-        ActivityCompat.requestPermissions(this, 
-                new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE}, 
-                REQUEST_STORAGE_PERMISSION);
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this, android.Manifest.permission.READ_EXTERNAL_STORAGE)) {
+            // Mostrar un diálogo explicando por qué se necesita el permiso
+            new AlertDialog.Builder(this)
+                .setTitle("Permiso necesario")
+                .setMessage("Se necesita acceso al almacenamiento para seleccionar fotos de tu galería")
+                .setPositiveButton("OK", (dialog, which) -> {
+                    // Solicitar el permiso
+                    ActivityCompat.requestPermissions(this,
+                            new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE},
+                            REQUEST_STORAGE_PERMISSION);
+                })
+                .setNegativeButton("Cancelar", (dialog, which) -> dialog.dismiss())
+                .create()
+                .show();
+        } else {
+            // Solicitar el permiso directamente
+            ActivityCompat.requestPermissions(this,
+                    new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE},
+                    REQUEST_STORAGE_PERMISSION);
+        }
     }
     
     @Override
