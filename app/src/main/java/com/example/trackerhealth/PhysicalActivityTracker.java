@@ -33,7 +33,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.trackerhealth.adapters.ActivityAdapter;
 import com.example.trackerhealth.dao.PhysicalActivityDAO;
 import com.example.trackerhealth.model.PhysicalActivity;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -69,6 +72,8 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private TextView locationStatusTextView;
     private TextView currentSpeedTextView;
     private TextView totalDistanceTextView;
+    private TextView noRecentActivitiesText;
+    private RecyclerView recentActivitiesRecyclerView;
     
     private PhysicalActivityDAO activityDAO;
     
@@ -111,6 +116,12 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private int consecutiveInvalidLocations = 0;
     private final int MAX_INVALID_LOCATIONS = 3;
 
+    // ID de usuario actual (en un app real se tomaría del login)
+    private long currentUserId = 1;
+
+    private ActivityAdapter activityAdapter;
+    private List<PhysicalActivity> activityList;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -136,6 +147,10 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         currentSpeedTextView = findViewById(R.id.current_speed_text);
         totalDistanceTextView = findViewById(R.id.total_distance_text);
 
+        // Inicializar vistas para actividades recientes
+        noRecentActivitiesText = findViewById(R.id.no_recent_activities_text);
+        recentActivitiesRecyclerView = findViewById(R.id.recent_activities_recycler_view);
+        
         // Configurar bottom navigation
         bottomNavigationView.setOnNavigationItemSelectedListener(this);
         bottomNavigationView.setSelectedItemId(R.id.navigation_activity);
@@ -192,6 +207,15 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         saveActivityButton.setOnClickListener(v -> {
             saveActivityToDatabase();
         });
+
+        // Inicializar datos
+        activityList = new ArrayList<>();
+        
+        // Configurar RecyclerView
+        setupRecyclerView();
+        
+        // Cargar actividades recientes
+        loadRecentActivities();
     }
     
     /**
@@ -790,6 +814,8 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                     Looper.getMainLooper()
             );
         }
+        // Recargar actividades cuando se vuelve a la actividad
+        loadRecentActivities();
     }
 
     @Override
@@ -815,5 +841,32 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         }
         
         return false;
+    }
+
+    private void setupRecyclerView() {
+        recentActivitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        activityAdapter = new ActivityAdapter(this, activityList, activity -> {
+            // Abrir detalles de la actividad al hacer clic
+            WorkoutDetailActivity.start(this, activity.getId(), activity.getActivityType());
+        });
+        recentActivitiesRecyclerView.setAdapter(activityAdapter);
+    }
+    
+    private void loadRecentActivities() {
+        // Limpiar lista anterior
+        activityList.clear();
+        
+        // Obtener actividades del usuario actual
+        List<PhysicalActivity> recentActivities = activityDAO.getRecentActivities(currentUserId, 10);
+        
+        if (recentActivities.isEmpty()) {
+            noRecentActivitiesText.setVisibility(View.VISIBLE);
+            recentActivitiesRecyclerView.setVisibility(View.GONE);
+        } else {
+            activityList.addAll(recentActivities);
+            noRecentActivitiesText.setVisibility(View.GONE);
+            recentActivitiesRecyclerView.setVisibility(View.VISIBLE);
+            activityAdapter.notifyDataSetChanged();
+        }
     }
 }
