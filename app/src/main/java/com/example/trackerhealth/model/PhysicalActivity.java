@@ -175,17 +175,17 @@ public class PhysicalActivity {
      * @return El valor correspondiente a la clave o cadena vacía si no se encuentra
      */
     public String getInfoFromNotes(String key) {
-        if (notes == null || notes.isEmpty()) {
+        if (notes == null || notes.isEmpty() || key == null || key.isEmpty()) {
             return "";
         }
         
-        String[] parts = notes.split(";");
-        for (String part : parts) {
-            if (part.startsWith(key + ":")) {
-                return part.substring(key.length() + 1);
+        String[] pairs = notes.split(",");
+        for (String pair : pairs) {
+            String[] keyValue = pair.split(":");
+            if (keyValue.length == 2 && keyValue[0].trim().equals(key)) {
+                return keyValue[1].trim();
             }
         }
-        
         return "";
     }
 

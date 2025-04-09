@@ -5,15 +5,19 @@
     <!-- Permisos necesarios -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" 
-                     android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-feature android:name="android.hardware.camera" 
-                  android:required="false" />
-    <uses-feature android:name="android.hardware.location.gps" 
-                  android:required="false" />
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <uses-feature android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps"
+        android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.stepcounter"
+        android:required="false" />
 
     <application
         android:allowBackup="true"
@@ -22,7 +26,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
-        
+
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyA8iEU5AUbQVk0-CPkoo9mYClldew4BToo" />
+
         <activity
             android:name=".LoginActivity"
             android:exported="true">
@@ -31,23 +39,39 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        
+
         <activity
             android:name=".DashboardActivity"
             android:exported="false" />
-            
+
         <activity
             android:name=".PhysicalActivityTracker"
             android:exported="false" />
-            
+
         <activity
             android:name=".FoodTrackerActivity"
             android:exported="false" />
-            
+
         <activity
             android:name=".ReportsActivity"
             android:exported="false" />
-            
+
+        <activity
+            android:name=".RunningDashboardActivity"
+            android:exported="false"
+            android:label="@string/title_activity" />
+
+        <activity
+            android:name=".WorkoutDetailActivity"
+            android:exported="false"
+            android:label="@string/workout_detail" />
+
+        <activity
+            android:name=".MapTrackingActivity"
+            android:exported="false"
+            android:label="Running Map"
+            android:theme="@style/AppTheme.NoActionBar" />
+
         <!-- FileProvider para acceso a las fotos -->
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -58,7 +82,7 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
-            
+
     </application>
 
 </manifest>

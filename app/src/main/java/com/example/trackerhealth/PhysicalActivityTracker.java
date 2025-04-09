@@ -8,7 +8,9 @@ import android.location.Location;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.util.Log;
@@ -31,7 +33,10 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.trackerhealth.adapters.ActivityAdapter;
 import com.example.trackerhealth.dao.PhysicalActivityDAO;
 import com.example.trackerhealth.model.PhysicalActivity;
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -50,6 +55,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import com.example.trackerhealth.util.LocationUtils;
+
 public class PhysicalActivityTracker extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener {
 
     private BottomNavigationView bottomNavigationView;
@@ -65,6 +72,8 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private TextView locationStatusTextView;
     private TextView currentSpeedTextView;
     private TextView totalDistanceTextView;
+    private TextView noRecentActivitiesText;
+    private RecyclerView recentActivitiesRecyclerView;
     
     private PhysicalActivityDAO activityDAO;
     
@@ -95,6 +104,24 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private long startTimeMillis;
     private List<Location> locationHistory = new ArrayList<>(); // Lista para almacenar el historial de ubicaciones
 
+    // Constantes para la precisión del GPS
+    private static final float MIN_ACCURACY_THRESHOLD = 20.0f; // metros
+    private static final float MIN_DISTANCE_BETWEEN_UPDATES = 5.0f; // metros
+    private static final long GPS_TIMEOUT = 30000; // 30 segundos para timeout del GPS
+    
+    // Variables adicionales para GPS
+    private Handler gpsTimeoutHandler = new Handler(Looper.getMainLooper());
+    private boolean hasGpsFix = false;
+    private long lastGpsUpdateTime = 0;
+    private int consecutiveInvalidLocations = 0;
+    private final int MAX_INVALID_LOCATIONS = 3;
+
+    // ID de usuario actual (en un app real se tomaría del login)
+    private long currentUserId = 1;
+
+    private ActivityAdapter activityAdapter;
+    private List<PhysicalActivity> activityList;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -120,6 +147,10 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         currentSpeedTextView = findViewById(R.id.current_speed_text);
         totalDistanceTextView = findViewById(R.id.total_distance_text);
 
+        // Inicializar vistas para actividades recientes
+        noRecentActivitiesText = findViewById(R.id.no_recent_activities_text);
+        recentActivitiesRecyclerView = findViewById(R.id.recent_activities_recycler_view);
+        
         // Configurar bottom navigation
         bottomNavigationView.setOnNavigationItemSelectedListener(this);
         bottomNavigationView.setSelectedItemId(R.id.navigation_activity);
@@ -176,16 +207,29 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         saveActivityButton.setOnClickListener(v -> {
             saveActivityToDatabase();
         });
+
+        // Inicializar datos
+        activityList = new ArrayList<>();
+        
+        // Configurar RecyclerView
+        setupRecyclerView();
+        
+        // Cargar actividades recientes
+        loadRecentActivities();
     }
     
     /**
      * Configura los parámetros de solicitud de ubicación
      */
     private void createLocationRequest() {
-        locationRequest = new LocationRequest.Builder(5000) // Actualizaciones cada 5 segundos
+        // Ajustar la frecuencia de actualización según el tipo de actividad
+        int updateInterval = useGpsCheckbox.isChecked() ? 3000 : 10000; // 3 segundos o 10 segundos
+        
+        locationRequest = new LocationRequest.Builder(updateInterval)
             .setPriority(Priority.PRIORITY_HIGH_ACCURACY)
-            .setMinUpdateIntervalMillis(2000) // Mínimo 2 segundos entre actualizaciones
-            .setMaxUpdateDelayMillis(10000) // Máximo retraso de 10 segundos
+            .setMinUpdateIntervalMillis(1000) // Mínimo 1 segundo entre actualizaciones
+            .setMaxUpdateDelayMillis(updateInterval * 2) // Máximo retraso
+            .setMinUpdateDistanceMeters(MIN_DISTANCE_BETWEEN_UPDATES) // Solo actualizar si nos movemos al menos 5 metros
             .build();
     }
     
@@ -201,27 +245,100 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                 if (locationResult.getLastLocation() != null) {
                     Location currentLocation = locationResult.getLastLocation();
                     
-                    // Actualizar latitud y longitud actuales
-                    currentLatitude = currentLocation.getLatitude();
-                    currentLongitude = currentLocation.getLongitude();
+                    // Resetear el timeout del GPS ya que recibimos una ubicación
+                    gpsTimeoutHandler.removeCallbacksAndMessages(null);
+                    lastGpsUpdateTime = SystemClock.elapsedRealtime();
                     
-                    // Guardar ubicación en el historial
-                    locationHistory.add(currentLocation);
-                    
-                    // Actualizar interfaz de usuario con datos de ubicación
-                    updateLocationUI(currentLocation);
-                    
-                    // Calcular distancia si hay una ubicación anterior
-                    if (lastLocation != null) {
-                        float distance = lastLocation.distanceTo(currentLocation);
-                        totalDistance += distance / 1000; // Convertir a kilómetros
+                    // Verificar si la ubicación es válida
+                    if (isValidLocation(currentLocation)) {
+                        // Restablecer contador de ubicaciones inválidas
+                        consecutiveInvalidLocations = 0;
+                        
+                        // Si aún no teníamos señal GPS, notificar que ahora la tenemos
+                        if (!hasGpsFix) {
+                            hasGpsFix = true;
+                            Toast.makeText(PhysicalActivityTracker.this, "GPS signal acquired", Toast.LENGTH_SHORT).show();
+                        }
+                        
+                        // Actualizar latitud y longitud actuales
+                        currentLatitude = currentLocation.getLatitude();
+                        currentLongitude = currentLocation.getLongitude();
+                        
+                        // Guardar ubicación en el historial
+                        locationHistory.add(currentLocation);
+                        
+                        // Actualizar interfaz de usuario con datos de ubicación
+                        updateLocationUI(currentLocation);
+                        
+                        // Calcular distancia si hay una ubicación anterior
+                        if (lastLocation != null) {
+                            // Usar el método Haversine para mayor precisión en largas distancias
+                            float distance = LocationUtils.calculateDistance(
+                                    lastLocation.getLatitude(), lastLocation.getLongitude(),
+                                    currentLocation.getLatitude(), currentLocation.getLongitude());
+                            
+                            // Solo añadir la distancia si es razonable (evitar saltos del GPS)
+                            if (distance > 0 && distance < 100) { // Ignorar saltos mayores a 100m
+                                totalDistance += distance / 1000; // Convertir a kilómetros
+                            }
+                        }
+                        
+                        // Guardar ubicación actual como última ubicación
+                        lastLocation = currentLocation;
+                    } else {
+                        // Incrementar contador de ubicaciones inválidas
+                        consecutiveInvalidLocations++;
+                        
+                        // Si tenemos demasiadas ubicaciones inválidas seguidas, notificar al usuario
+                        if (consecutiveInvalidLocations >= MAX_INVALID_LOCATIONS) {
+                            hasGpsFix = false;
+                            Toast.makeText(PhysicalActivityTracker.this, 
+                                    "GPS signal lost. Moving to more open area may help", 
+                                    Toast.LENGTH_SHORT).show();
+                            consecutiveInvalidLocations = 0; // Resetear contador para no spammear
+                        }
                     }
                     
-                    // Guardar ubicación actual como última ubicación
-                    lastLocation = currentLocation;
+                    // Configurar un timeout para detectar pérdida prolongada de señal GPS
+                    gpsTimeoutHandler.postDelayed(() -> {
+                        // Si pasó el tiempo de timeout sin actualizaciones válidas
+                        if (SystemClock.elapsedRealtime() - lastGpsUpdateTime > GPS_TIMEOUT) {
+                            hasGpsFix = false;
+                            Toast.makeText(PhysicalActivityTracker.this, 
+                                    "GPS signal lost for too long. Check device settings.", 
+                                    Toast.LENGTH_LONG).show();
+                        }
+                    }, GPS_TIMEOUT);
                 }
             }
         };
+    }
+    
+    /**
+     * Verifica si una ubicación es válida y precisa
+     */
+    private boolean isValidLocation(Location location) {
+        // Verificar si la ubicación tiene buena precisión
+        if (location.hasAccuracy() && location.getAccuracy() > MIN_ACCURACY_THRESHOLD) {
+            Log.d("GPS", "Location discarded due to poor accuracy: " + location.getAccuracy() + "m");
+            return false;
+        }
+        
+        // Verificar velocidad de movimiento (si la ubicación tiene velocidad)
+        if (location.hasSpeed() && location.getSpeed() > 30) { // Más de 30 m/s (108 km/h)
+            Log.d("GPS", "Location discarded due to unrealistic speed: " + location.getSpeed() + "m/s");
+            return false;
+        }
+        
+        // Verificar que la ubicación no sea muy antigua
+        long locationTime = location.getTime();
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - locationTime > 60000) { // Más de 1 minuto de antigüedad
+            Log.d("GPS", "Location discarded due to age: " + (currentTime - locationTime) + "ms old");
+            return false;
+        }
+        
+        return true;
     }
     
     /**
@@ -271,6 +388,10 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
      */
     private void startLocationTracking() {
         if (checkLocationPermission()) {
+            // Redefinir los parámetros de ubicación según el estado actual
+            createLocationRequest();
+            
+            // Iniciar actualizaciones de ubicación
             fusedLocationClient.requestLocationUpdates(
                     locationRequest,
                     locationCallback,
@@ -282,6 +403,8 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
             startTimeMillis = System.currentTimeMillis();
             totalDistance = 0;
             lastLocation = null;
+            hasGpsFix = false;
+            consecutiveInvalidLocations = 0;
             
             // Limpiar historial de ubicaciones anterior
             locationHistory.clear();
@@ -289,6 +412,15 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
             // Cambiar texto del botón
             startTrackingButton.setText(R.string.stop_tracking);
             Toast.makeText(this, "GPS tracking started", Toast.LENGTH_SHORT).show();
+            
+            // Configurar un timeout para adquisición inicial de GPS
+            gpsTimeoutHandler.postDelayed(() -> {
+                if (!hasGpsFix && isTrackingLocation) {
+                    Toast.makeText(PhysicalActivityTracker.this, 
+                            "Having trouble getting GPS signal. Make sure you're outside or near a window.", 
+                            Toast.LENGTH_LONG).show();
+                }
+            }, 15000); // 15 segundos para adquirir señal GPS inicial
         } else {
             requestLocationPermission();
         }
@@ -682,6 +814,8 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                     Looper.getMainLooper()
             );
         }
+        // Recargar actividades cuando se vuelve a la actividad
+        loadRecentActivities();
     }
 
     @Override
@@ -707,5 +841,32 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         }
         
         return false;
+    }
+
+    private void setupRecyclerView() {
+        recentActivitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        activityAdapter = new ActivityAdapter(this, activityList, activity -> {
+            // Abrir detalles de la actividad al hacer clic
+            WorkoutDetailActivity.start(this, activity.getId(), activity.getActivityType());
+        });
+        recentActivitiesRecyclerView.setAdapter(activityAdapter);
+    }
+    
+    private void loadRecentActivities() {
+        // Limpiar lista anterior
+        activityList.clear();
+        
+        // Obtener actividades del usuario actual
+        List<PhysicalActivity> recentActivities = activityDAO.getRecentActivities(currentUserId, 10);
+        
+        if (recentActivities.isEmpty()) {
+            noRecentActivitiesText.setVisibility(View.VISIBLE);
+            recentActivitiesRecyclerView.setVisibility(View.GONE);
+        } else {
+            activityList.addAll(recentActivities);
+            noRecentActivitiesText.setVisibility(View.GONE);
+            recentActivitiesRecyclerView.setVisibility(View.VISIBLE);
+            activityAdapter.notifyDataSetChanged();
+        }
     }
 }
