@@ -121,4 +121,9 @@
     
     <!-- Running dashboard strings -->
     <string name="welcome_back_user">Welcome back, %1$s 👋</string>
+    
+    <!-- New strings -->
+    <string name="activity_icon">Icono de actividad</string>
+    <string name="meal_icon">Icono de comida</string>
+    <string name="view_more">Ver más</string>
 </resources>
