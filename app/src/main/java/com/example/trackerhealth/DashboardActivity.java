@@ -3,6 +3,7 @@ package com.example.trackerhealth;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -146,120 +147,152 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
     }
     
     private void loadDashboardData() {
-        // Cargar actividades recientes
-        loadRecentActivities();
-        
-        // Cargar comidas del día
-        loadTodaysMeals();
-        
-        // Actualizar resumen diario
-        updateDailySummary();
+        try {
+            // Cargar actividades recientes
+            loadRecentActivities();
+            
+            // Cargar comidas del día
+            loadTodaysMeals();
+            
+            // Actualizar resumen diario
+            updateDailySummary();
+        } catch (Exception e) {
+            // Loguear el error pero evitar que la aplicación crashee
+            Log.e("DashboardActivity", "Error al cargar datos: " + e.getMessage(), e);
+            Toast.makeText(this, "Error al cargar algunos datos. Intente nuevamente.", Toast.LENGTH_SHORT).show();
+        }
     }
     
     private void loadRecentActivities() {
-        // Limpiar lista anterior
-        activityList.clear();
-        
-        // Obtener actividades del usuario actual
-        List<PhysicalActivity> recentActivities = activityDAO.getRecentActivities(currentUserId, 5);
-        
-        if (recentActivities.isEmpty()) {
+        try {
+            // Limpiar lista anterior
+            activityList.clear();
+            
+            // Obtener actividades del usuario actual
+            List<PhysicalActivity> recentActivities = activityDAO.getRecentActivities(currentUserId, 5);
+            
+            if (recentActivities.isEmpty()) {
+                noActivitiesText.setVisibility(View.VISIBLE);
+                activitiesRecyclerView.setVisibility(View.GONE);
+            } else {
+                activityList.addAll(recentActivities);
+                noActivitiesText.setVisibility(View.GONE);
+                activitiesRecyclerView.setVisibility(View.VISIBLE);
+                activityAdapter.notifyDataSetChanged();
+            }
+        } catch (Exception e) {
+            Log.e("DashboardActivity", "Error al cargar actividades: " + e.getMessage(), e);
+            noActivitiesText.setText("Error al cargar actividades");
             noActivitiesText.setVisibility(View.VISIBLE);
             activitiesRecyclerView.setVisibility(View.GONE);
-        } else {
-            activityList.addAll(recentActivities);
-            noActivitiesText.setVisibility(View.GONE);
-            activitiesRecyclerView.setVisibility(View.VISIBLE);
-            activityAdapter.notifyDataSetChanged();
         }
     }
     
     private void loadTodaysMeals() {
-        // Limpiar lista anterior
-        mealList.clear();
-        
-        // Obtener comidas del día
-        List<Meal> todaysMeals = mealDAO.getTodaysMeals(currentUserId);
-        
-        if (todaysMeals.isEmpty()) {
-            // Crearemos algunos datos de ejemplo solo para la demo si no hay datos reales
-            createSampleMeals();
-        } else {
-            mealList.addAll(todaysMeals);
-        }
-        
-        // Actualizar UI
-        if (mealList.isEmpty()) {
+        try {
+            // Limpiar lista anterior
+            mealList.clear();
+            
+            // Obtener comidas del día
+            List<Meal> todaysMeals = mealDAO.getTodaysMeals(currentUserId);
+            
+            if (todaysMeals.isEmpty()) {
+                // Crearemos algunos datos de ejemplo solo para la demo si no hay datos reales
+                createSampleMeals();
+            } else {
+                mealList.addAll(todaysMeals);
+            }
+            
+            // Actualizar UI
+            if (mealList.isEmpty()) {
+                noMealsText.setVisibility(View.VISIBLE);
+                mealsRecyclerView.setVisibility(View.GONE);
+            } else {
+                noMealsText.setVisibility(View.GONE);
+                mealsRecyclerView.setVisibility(View.VISIBLE);
+                mealAdapter.notifyDataSetChanged();
+            }
+        } catch (Exception e) {
+            Log.e("DashboardActivity", "Error al cargar comidas: " + e.getMessage(), e);
+            noMealsText.setText("Error al cargar comidas");
             noMealsText.setVisibility(View.VISIBLE);
             mealsRecyclerView.setVisibility(View.GONE);
-        } else {
-            noMealsText.setVisibility(View.GONE);
-            mealsRecyclerView.setVisibility(View.VISIBLE);
-            mealAdapter.notifyDataSetChanged();
         }
     }
     
     // Crear datos de ejemplo para la demo
     private void createSampleMeals() {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        String today = dateFormat.format(new Date());
-        
-        // Crear comidas de ejemplo
-        Meal breakfast = new Meal();
-        breakfast.setUserId(currentUserId);
-        breakfast.setName("Avena con frutas");
-        breakfast.setMealType("Desayuno");
-        breakfast.setCalories(320);
-        breakfast.setProteins(12);
-        breakfast.setCarbs(45);
-        breakfast.setFats(8);
-        breakfast.setDate(today);
-        breakfast.setTime("07:30");
-        
-        Meal lunch = new Meal();
-        lunch.setUserId(currentUserId);
-        lunch.setName("Ensalada César con pollo");
-        lunch.setMealType("Almuerzo");
-        lunch.setCalories(450);
-        lunch.setProteins(35);
-        lunch.setCarbs(25);
-        lunch.setFats(22);
-        lunch.setDate(today);
-        lunch.setTime("13:00");
-        
-        // Guardar en la base de datos y añadir a la lista
-        long breakfastId = mealDAO.addMeal(breakfast);
-        long lunchId = mealDAO.addMeal(lunch);
-        
-        if (breakfastId > 0) {
-            breakfast.setId(breakfastId);
-            mealList.add(breakfast);
-        }
-        
-        if (lunchId > 0) {
-            lunch.setId(lunchId);
-            mealList.add(lunch);
+        try {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+            String today = dateFormat.format(new Date());
+            
+            // Crear comidas de ejemplo
+            Meal breakfast = new Meal();
+            breakfast.setUserId(currentUserId);
+            breakfast.setName("Avena con frutas");
+            breakfast.setMealType("Desayuno");
+            breakfast.setCalories(320);
+            breakfast.setProteins(12);
+            breakfast.setCarbs(45);
+            breakfast.setFats(8);
+            breakfast.setDate(today);
+            breakfast.setTime("07:30");
+            
+            Meal lunch = new Meal();
+            lunch.setUserId(currentUserId);
+            lunch.setName("Ensalada César con pollo");
+            lunch.setMealType("Almuerzo");
+            lunch.setCalories(450);
+            lunch.setProteins(35);
+            lunch.setCarbs(25);
+            lunch.setFats(22);
+            lunch.setDate(today);
+            lunch.setTime("13:00");
+            
+            // Guardar en la base de datos y añadir a la lista
+            long breakfastId = mealDAO.addMeal(breakfast);
+            long lunchId = mealDAO.addMeal(lunch);
+            
+            if (breakfastId > 0) {
+                breakfast.setId(breakfastId);
+                mealList.add(breakfast);
+            }
+            
+            if (lunchId > 0) {
+                lunch.setId(lunchId);
+                mealList.add(lunch);
+            }
+        } catch (Exception e) {
+            Log.e("DashboardActivity", "Error al crear comidas de ejemplo: " + e.getMessage(), e);
         }
     }
     
     private void updateDailySummary() {
-        // Sumar calorías consumidas en comidas
-        int totalCalories = 0;
-        for (Meal meal : mealList) {
-            totalCalories += meal.getCalories();
+        try {
+            // Sumar calorías consumidas en comidas
+            int totalCalories = 0;
+            for (Meal meal : mealList) {
+                totalCalories += meal.getCalories();
+            }
+            
+            // Calcular pasos (simulados para la demo)
+            int steps = 6532; // Valor de ejemplo
+            
+            // Calcular número de ejercicios realizados hoy
+            int exercisesCount = activityDAO.getActivitiesByDate(currentUserId, 
+                    new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date())).size();
+            
+            // Actualizar UI
+            stepsValue.setText(String.valueOf(steps));
+            caloriesValue.setText(String.valueOf(totalCalories));
+            exercisesValue.setText(String.valueOf(exercisesCount));
+        } catch (Exception e) {
+            Log.e("DashboardActivity", "Error al actualizar resumen diario: " + e.getMessage(), e);
+            // En caso de error, mostrar valores predeterminados
+            stepsValue.setText("0");
+            caloriesValue.setText("0");
+            exercisesValue.setText("0");
         }
-        
-        // Calcular pasos (simulados para la demo)
-        int steps = 6532; // Valor de ejemplo
-        
-        // Calcular número de ejercicios realizados hoy
-        int exercisesCount = activityDAO.getActivitiesByDate(currentUserId, 
-                new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date())).size();
-        
-        // Actualizar UI
-        stepsValue.setText(String.valueOf(steps));
-        caloriesValue.setText(String.valueOf(totalCalories));
-        exercisesValue.setText(String.valueOf(exercisesCount));
     }
     
     /**

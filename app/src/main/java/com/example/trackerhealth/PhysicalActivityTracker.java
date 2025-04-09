@@ -843,30 +843,59 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         return false;
     }
 
+    /**
+     * Configura el RecyclerView para mostrar las actividades recientes
+     */
     private void setupRecyclerView() {
-        recentActivitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        activityAdapter = new ActivityAdapter(this, activityList, activity -> {
-            // Abrir detalles de la actividad al hacer clic
-            WorkoutDetailActivity.start(this, activity.getId(), activity.getActivityType());
-        });
-        recentActivitiesRecyclerView.setAdapter(activityAdapter);
+        if (recentActivitiesRecyclerView != null) {
+            recentActivitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+            activityAdapter = new ActivityAdapter(this, activityList, activity -> {
+                // Abrir detalles de la actividad al hacer clic
+                WorkoutDetailActivity.start(this, activity.getId(), activity.getActivityType());
+            });
+            recentActivitiesRecyclerView.setAdapter(activityAdapter);
+        }
     }
     
+    /**
+     * Carga las actividades recientes del usuario
+     */
     private void loadRecentActivities() {
         // Limpiar lista anterior
         activityList.clear();
         
-        // Obtener actividades del usuario actual
-        List<PhysicalActivity> recentActivities = activityDAO.getRecentActivities(currentUserId, 10);
-        
-        if (recentActivities.isEmpty()) {
-            noRecentActivitiesText.setVisibility(View.VISIBLE);
-            recentActivitiesRecyclerView.setVisibility(View.GONE);
-        } else {
-            activityList.addAll(recentActivities);
-            noRecentActivitiesText.setVisibility(View.GONE);
-            recentActivitiesRecyclerView.setVisibility(View.VISIBLE);
-            activityAdapter.notifyDataSetChanged();
+        try {
+            // Obtener actividades del usuario actual
+            List<PhysicalActivity> recentActivities = activityDAO.getRecentActivities(currentUserId, 10);
+            
+            if (recentActivities.isEmpty()) {
+                if (noRecentActivitiesText != null) {
+                    noRecentActivitiesText.setVisibility(View.VISIBLE);
+                }
+                if (recentActivitiesRecyclerView != null) {
+                    recentActivitiesRecyclerView.setVisibility(View.GONE);
+                }
+            } else {
+                activityList.addAll(recentActivities);
+                if (noRecentActivitiesText != null) {
+                    noRecentActivitiesText.setVisibility(View.GONE);
+                }
+                if (recentActivitiesRecyclerView != null) {
+                    recentActivitiesRecyclerView.setVisibility(View.VISIBLE);
+                    if (activityAdapter != null) {
+                        activityAdapter.notifyDataSetChanged();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Log.e("PhysicalActivityTracker", "Error al cargar actividades: " + e.getMessage());
+            if (noRecentActivitiesText != null) {
+                noRecentActivitiesText.setText("Error al cargar actividades");
+                noRecentActivitiesText.setVisibility(View.VISIBLE);
+            }
+            if (recentActivitiesRecyclerView != null) {
+                recentActivitiesRecyclerView.setVisibility(View.GONE);
+            }
         }
     }
 }

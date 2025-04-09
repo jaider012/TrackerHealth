@@ -8,7 +8,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     // Database Info
     private static final String DATABASE_NAME = "TrackerHealth.db";
-    private static final int DATABASE_VERSION = 2;
+    private static final int DATABASE_VERSION = 3;
 
     // Table Names
     public static final String TABLE_USERS = "users";
@@ -16,6 +16,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String TABLE_FOOD_ENTRIES = "food_entries";
     public static final String TABLE_WATER_INTAKE = "water_intake";
     public static final String TABLE_SLEEP_RECORDS = "sleep_records";
+    public static final String TABLE_MEALS = "meals";
 
     // User Table Columns
     public static final String KEY_USER_ID = "id";
@@ -106,9 +107,26 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 KEY_FOOD_DATE + " DATETIME DEFAULT CURRENT_TIMESTAMP" +
                 ")";
 
+        String CREATE_MEALS_TABLE = "CREATE TABLE " + TABLE_MEALS +
+                "(" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "user_id INTEGER REFERENCES " + TABLE_USERS + "," +
+                "name TEXT," +
+                "meal_type TEXT," +
+                "calories INTEGER," +
+                "proteins REAL," +
+                "carbs REAL," +
+                "fats REAL," +
+                "date TEXT," +
+                "time TEXT," +
+                "notes TEXT," +
+                "photo_path TEXT" +
+                ")";
+
         db.execSQL(CREATE_USERS_TABLE);
         db.execSQL(CREATE_PHYSICAL_ACTIVITIES_TABLE);
         db.execSQL(CREATE_FOOD_ENTRIES_TABLE);
+        db.execSQL(CREATE_MEALS_TABLE);
     }
 
     @Override
@@ -119,6 +137,25 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                        " ADD COLUMN " + KEY_ACTIVITY_LATITUDE + " REAL;");
             db.execSQL("ALTER TABLE " + TABLE_PHYSICAL_ACTIVITIES + 
                        " ADD COLUMN " + KEY_ACTIVITY_LONGITUDE + " REAL;");
+        }
+        
+        if (oldVersion < 3) {
+            // Crear la tabla meals si no existe
+            db.execSQL("CREATE TABLE IF NOT EXISTS " + TABLE_MEALS +
+                    "(" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    "user_id INTEGER REFERENCES " + TABLE_USERS + "," +
+                    "name TEXT," +
+                    "meal_type TEXT," +
+                    "calories INTEGER," +
+                    "proteins REAL," +
+                    "carbs REAL," +
+                    "fats REAL," +
+                    "date TEXT," +
+                    "time TEXT," +
+                    "notes TEXT," +
+                    "photo_path TEXT" +
+                    ")");
         }
     }
 } 

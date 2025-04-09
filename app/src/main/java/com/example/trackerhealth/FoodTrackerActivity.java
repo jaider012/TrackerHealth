@@ -390,10 +390,10 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
                 View mealItemView = LayoutInflater.from(this).inflate(R.layout.item_meal, null);
                 
                 // Configurar vistas
-                TextView mealNameText = mealItemView.findViewById(R.id.meal_name_text);
-                TextView mealTypeText = mealItemView.findViewById(R.id.meal_type_text);
-                TextView caloriesText = mealItemView.findViewById(R.id.calories_text);
-                ImageView mealPhotoView = mealItemView.findViewById(R.id.meal_photo);
+                TextView mealNameText = mealItemView.findViewById(R.id.tv_meal_name);
+                TextView mealTypeText = mealItemView.findViewById(R.id.tv_meal_type);
+                TextView caloriesText = mealItemView.findViewById(R.id.tv_calories);
+                ImageView mealPhotoView = mealItemView.findViewById(R.id.iv_meal_icon);
                 
                 if (mealNameText != null) mealNameText.setText(name);
                 if (mealTypeText != null) mealTypeText.setText(type);
