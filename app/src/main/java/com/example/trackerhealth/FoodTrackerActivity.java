@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -12,6 +13,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Spinner;
 import android.widget.Toast;
@@ -39,6 +41,8 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
     private Button takePhotoButton;
     private Button saveMealButton;
     private ImageView foodPhotoPreview;
+    private EditText foodNameInput;
+    private EditText caloriesInput;
     
     // Constantes para permisos y códigos de solicitud
     private static final int REQUEST_IMAGE_CAPTURE = 1;
@@ -61,6 +65,8 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
         takePhotoButton = findViewById(R.id.take_photo_button);
         saveMealButton = findViewById(R.id.save_meal_button);
         foodPhotoPreview = findViewById(R.id.food_photo_preview);
+        foodNameInput = findViewById(R.id.food_name_input);
+        caloriesInput = findViewById(R.id.calories_input);
 
         // Configurar bottom navigation
         bottomNavigationView.setOnNavigationItemSelectedListener(this);
@@ -78,15 +84,7 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
 
         // Configurar botón de guardar
         saveMealButton.setOnClickListener(v -> {
-            // Aquí se guardarían los datos, incluyendo la ruta de la imagen
-            if (photoUri != null || currentPhotoPath != null) {
-                Toast.makeText(this, "Meal saved with photo", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(this, "Meal saved without photo", Toast.LENGTH_SHORT).show();
-            }
-            
-            // Reiniciar la vista previa después de guardar
-            resetPhotoPreview();
+            saveMealData();
         });
     }
     
@@ -224,20 +222,29 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
     }
     
     private boolean checkStoragePermission() {
-        return ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE) 
-                == PackageManager.PERMISSION_GRANTED;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            return ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_MEDIA_IMAGES) 
+                    == PackageManager.PERMISSION_GRANTED;
+        } else {
+            return ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE) 
+                    == PackageManager.PERMISSION_GRANTED;
+        }
     }
     
     private void requestStoragePermission() {
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, android.Manifest.permission.READ_EXTERNAL_STORAGE)) {
+        String permission = (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) 
+                ? android.Manifest.permission.READ_MEDIA_IMAGES 
+                : android.Manifest.permission.READ_EXTERNAL_STORAGE;
+                
+        if (ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
             // Mostrar un diálogo explicando por qué se necesita el permiso
             new AlertDialog.Builder(this)
                 .setTitle("Permiso necesario")
-                .setMessage("Se necesita acceso al almacenamiento para seleccionar fotos de tu galería")
+                .setMessage("Se necesita acceso a tus imágenes para seleccionar fotos de tu galería")
                 .setPositiveButton("OK", (dialog, which) -> {
                     // Solicitar el permiso
                     ActivityCompat.requestPermissions(this,
-                            new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE},
+                            new String[]{permission},
                             REQUEST_STORAGE_PERMISSION);
                 })
                 .setNegativeButton("Cancelar", (dialog, which) -> dialog.dismiss())
@@ -246,7 +253,7 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
         } else {
             // Solicitar el permiso directamente
             ActivityCompat.requestPermissions(this,
-                    new String[]{android.Manifest.permission.READ_EXTERNAL_STORAGE},
+                    new String[]{permission},
                     REQUEST_STORAGE_PERMISSION);
         }
     }
@@ -292,5 +299,66 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
         }
         
         return false;
+    }
+
+    /**
+     * Guarda los datos de la comida
+     */
+    private void saveMealData() {
+        String foodName = foodNameInput.getText().toString().trim();
+        String caloriesStr = caloriesInput.getText().toString().trim();
+        String mealType = mealTypeSpinner.getSelectedItem().toString();
+        
+        // Validar campos
+        if (foodName.isEmpty()) {
+            Toast.makeText(this, "Por favor, ingresa el nombre de la comida", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Guardar en SharedPreferences para una solución simple
+        SharedPreferences prefs = getSharedPreferences("FoodTrackerPrefs", MODE_PRIVATE);
+        SharedPreferences.Editor editor = prefs.edit();
+        
+        // Crear ID único para esta comida
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+        String mealId = "meal_" + timeStamp;
+        
+        // Guardar datos de la comida
+        editor.putString(mealId + "_name", foodName);
+        editor.putString(mealId + "_type", mealType);
+        
+        if (!caloriesStr.isEmpty()) {
+            editor.putInt(mealId + "_calories", Integer.parseInt(caloriesStr));
+        }
+        
+        if (photoUri != null) {
+            editor.putString(mealId + "_photo", photoUri.toString());
+        } else if (currentPhotoPath != null) {
+            editor.putString(mealId + "_photo", currentPhotoPath);
+        }
+        
+        // Guardar fecha
+        editor.putLong(mealId + "_date", System.currentTimeMillis());
+        
+        // Añadir esta comida a la lista de IDs
+        String mealIds = prefs.getString("meal_ids", "");
+        if (mealIds.isEmpty()) {
+            mealIds = mealId;
+        } else {
+            mealIds = mealIds + "," + mealId;
+        }
+        editor.putString("meal_ids", mealIds);
+        
+        // Guardar todo
+        if (editor.commit()) {
+            Toast.makeText(this, "Comida guardada correctamente", Toast.LENGTH_SHORT).show();
+            // Limpiar formulario
+            foodNameInput.setText("");
+            caloriesInput.setText("");
+            resetPhotoPreview();
+            // Aquí deberías actualizar la lista de comidas mostradas
+        } else {
+            Toast.makeText(this, "Error al guardar la comida", Toast.LENGTH_SHORT).show();
+        }
     }
 }
