@@ -261,7 +261,11 @@
                         android:gravity="center"
                         android:padding="16dp" />
 
-                    <!-- Aquí iría un RecyclerView para mostrar actividades recientes -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/recent_activities_recycler_view"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>

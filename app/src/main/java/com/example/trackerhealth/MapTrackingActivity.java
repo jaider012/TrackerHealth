@@ -8,6 +8,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.util.Log;
 import android.view.View;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -21,6 +22,7 @@ import androidx.core.content.ContextCompat;
 
 import com.example.trackerhealth.dao.PhysicalActivityDAO;
 import com.example.trackerhealth.model.PhysicalActivity;
+import com.example.trackerhealth.util.LocationUtils;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -32,6 +34,8 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.JointType;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
@@ -45,6 +49,9 @@ public class MapTrackingActivity extends AppCompatActivity implements OnMapReady
     private static final int REQUEST_LOCATION_PERMISSION = 1001;
     private static final int UPDATE_INTERVAL = 5000; // 5 seconds
     private static final int FASTEST_INTERVAL = 3000; // 3 seconds
+    
+    private static final float MIN_ACCURACY_THRESHOLD = 20.0f; // metros
+    private static final int LOCATION_BUFFER_SIZE = 100; // Máximo número de ubicaciones a mantener
     
     // UI components
     private TextView tvDistance;
@@ -67,6 +74,11 @@ public class MapTrackingActivity extends AppCompatActivity implements OnMapReady
     private long startTimeMillis = 0;
     private Handler timerHandler = new Handler(Looper.getMainLooper());
     private Runnable timerRunnable;
+    
+    // Variables adicionales para mejorar el tracking
+    private List<LatLng> filteredRoutePoints = new ArrayList<>();
+    private boolean hasGpsFix = false;
+    private long lastLocationUpdateTime = 0;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -239,21 +251,60 @@ public class MapTrackingActivity extends AppCompatActivity implements OnMapReady
                 for (Location location : locationResult.getLocations()) {
                     // Only process location updates if tracking is active
                     if (isTracking) {
-                        // Calculate distance
-                        if (currentLocation != null) {
-                            distanceTraveled += currentLocation.distanceTo(location);
-                            updateDistanceText();
+                        lastLocationUpdateTime = System.currentTimeMillis();
+                        
+                        // Verificar si la ubicación tiene buena precisión
+                        if (isValidLocation(location)) {
+                            // Si es la primera ubicación buena, indicar que tenemos GPS fix
+                            if (!hasGpsFix) {
+                                hasGpsFix = true;
+                                Toast.makeText(MapTrackingActivity.this, "GPS signal acquired", Toast.LENGTH_SHORT).show();
+                            }
+                            
+                            // Calculate distance
+                            if (currentLocation != null) {
+                                // Usar el método Haversine para mayor precisión en largas distancias
+                                float distance = LocationUtils.calculateDistance(
+                                        currentLocation.getLatitude(), currentLocation.getLongitude(),
+                                        location.getLatitude(), location.getLongitude());
+                                
+                                // Verificar que la distancia sea razonable
+                                if (distance > 0 && distance < 100) { // Ignorar saltos mayores a 100m
+                                    distanceTraveled += distance;
+                                    updateDistanceText();
+                                }
+                            }
+                            
+                            // Update current location
+                            currentLocation = location;
+                            
+                            // Update map
+                            updateMapWithLocation(location);
+                        } else {
+                            // Location is not valid enough
+                            Log.d("MapTracking", "Ignoring low quality location");
                         }
-                        
-                        // Update current location
-                        currentLocation = location;
-                        
-                        // Update map
-                        updateMapWithLocation(location);
                     }
                 }
             }
         };
+    }
+    
+    /**
+     * Verifica si una ubicación es válida y precisa
+     */
+    private boolean isValidLocation(Location location) {
+        // Verificar si la ubicación tiene buena precisión
+        if (location.hasAccuracy() && location.getAccuracy() > MIN_ACCURACY_THRESHOLD) {
+            return false;
+        }
+        
+        // Verificar velocidad de movimiento (si la ubicación tiene velocidad)
+        if (location.hasSpeed() && location.getSpeed() > 30) { // Más de 30 m/s (108 km/h)
+            return false;
+        }
+        
+        return true;
     }
     
     /**
@@ -266,24 +317,94 @@ public class MapTrackingActivity extends AppCompatActivity implements OnMapReady
             // Add point to route
             routePoints.add(latLng);
             
-            // Draw route
-            if (routePoints.size() > 1) {
-                // Draw the entire route as one polyline (more efficient)
-                mMap.clear();
-                mMap.addPolyline(new PolylineOptions()
-                        .addAll(routePoints)
-                        .width(10)
-                        .color(Color.rgb(112, 82, 231))); // Purple color
+            // Limit memory usage by keeping only a certain number of points
+            if (routePoints.size() > LOCATION_BUFFER_SIZE) {
+                // Keep only the newest points
+                routePoints = new ArrayList<>(routePoints.subList(
+                        routePoints.size() - LOCATION_BUFFER_SIZE, 
+                        routePoints.size()));
             }
             
-            // Add marker at current location
-            mMap.addMarker(new MarkerOptions()
-                    .position(latLng)
-                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_VIOLET)));
+            // Agregar punto al trazado filtrado solo si estamos en movimiento
+            if (location.hasSpeed() && location.getSpeed() > 0.5 || // Si hay velocidad reportada > 0.5 m/s
+                    (filteredRoutePoints.isEmpty() || // O si es el primer punto
+                    !filteredRoutePoints.isEmpty() && 
+                        distanceBetweenPoints(filteredRoutePoints.get(filteredRoutePoints.size() - 1), latLng) > 5)) { // O si nos movimos más de 5m
+                
+                filteredRoutePoints.add(latLng);
+            }
             
-            // Move camera to follow user
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17f));
+            // Draw route - solo usamos los puntos filtrados para dibujar
+            if (filteredRoutePoints.size() > 1) {
+                // Draw the filtered route
+                mMap.clear();
+                
+                // Usar un color vibrante para la ruta
+                int routeColor = Color.rgb(66, 133, 244); // Azul Google
+                
+                mMap.addPolyline(new PolylineOptions()
+                        .addAll(filteredRoutePoints)
+                        .width(12) // Línea un poco más gruesa
+                        .color(routeColor)
+                        .jointType(JointType.ROUND) // Juntas redondeadas
+                        .geodesic(true)); // Seguir curvatura de la Tierra
+            }
+            
+            // Add marker at current location - usar un icono personalizado o de menor tamaño
+            MarkerOptions markerOptions = new MarkerOptions()
+                    .position(latLng)
+                    .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_BLUE));
+            
+            if (routePoints.size() > 1) {
+                // Si hay más de un punto, orientar el marcador en la dirección del movimiento
+                LatLng prevPoint = routePoints.get(routePoints.size() - 2);
+                float bearing = bearingBetweenPoints(prevPoint, latLng);
+                markerOptions.rotation(bearing);
+                
+                // Actualizar la cámara para seguir la dirección del movimiento
+                mMap.animateCamera(CameraUpdateFactory.newCameraPosition(
+                        new CameraPosition.Builder()
+                                .target(latLng)
+                                .zoom(17f)
+                                .bearing(bearing)
+                                .tilt(45) // Ángulo de inclinación para mejor visualización
+                                .build()
+                ));
+            } else {
+                // Move camera to follow user - vista simple
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 17f));
+            }
+            
+            mMap.addMarker(markerOptions);
         }
+    }
+    
+    /**
+     * Calcula la distancia entre dos puntos LatLng
+     */
+    private float distanceBetweenPoints(LatLng point1, LatLng point2) {
+        return LocationUtils.calculateDistance(
+                point1.latitude, point1.longitude,
+                point2.latitude, point2.longitude);
+    }
+    
+    /**
+     * Calcula el rumbo (bearing) entre dos puntos para orientación del marcador
+     */
+    private float bearingBetweenPoints(LatLng start, LatLng end) {
+        double startLat = Math.toRadians(start.latitude);
+        double startLng = Math.toRadians(start.longitude);
+        double endLat = Math.toRadians(end.latitude);
+        double endLng = Math.toRadians(end.longitude);
+        
+        double dLng = endLng - startLng;
+        
+        double y = Math.sin(dLng) * Math.cos(endLat);
+        double x = Math.cos(startLat) * Math.sin(endLat) -
+                   Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLng);
+        
+        double bearing = Math.toDegrees(Math.atan2(y, x));
+        return (float) ((bearing + 360) % 360);
     }
     
     /**
