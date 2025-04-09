@@ -21,7 +21,7 @@ public class MealDAO {
     private final SimpleDateFormat timeFormat;
     
     // Table and column names
-    private static final String TABLE_MEALS = "meals";
+    private static final String TABLE_MEALS = DatabaseHelper.TABLE_MEALS;
     private static final String COLUMN_ID = "id";
     private static final String COLUMN_USER_ID = "user_id";
     private static final String COLUMN_NAME = "name";
@@ -36,7 +36,7 @@ public class MealDAO {
     private static final String COLUMN_PHOTO_PATH = "photo_path";
     
     public MealDAO(Context context) {
-        dbHelper = new DatabaseHelper(context);
+        dbHelper = DatabaseHelper.getInstance(context);
         dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
     }
