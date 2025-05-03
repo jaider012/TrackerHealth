@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -33,23 +34,25 @@ public class LoginActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
-        // Verificar si el usuario ya está logueado
-        if (isUserLoggedIn()) {
-            navigateToDashboard();
-            return;
-        }
-        
         setContentView(R.layout.activity_login);
 
         // Inicializar la base de datos
         userDAO = new UserDAO(this);
+        
+        // Crear usuario de prueba si es la primera vez
+        ensureTestUserExists();
         
         // Inicializar vistas
         emailInput = findViewById(R.id.email_input);
         passwordInput = findViewById(R.id.password_input);
         loginButton = findViewById(R.id.login_button);
         registerLink = findViewById(R.id.register_link);
+        
+        // Verificar si el usuario ya está logueado
+        if (isUserLoggedIn()) {
+            navigateToDashboard();
+            return;
+        }
 
         // Configurar el botón de login
         loginButton.setOnClickListener(new View.OnClickListener() {
@@ -63,12 +66,19 @@ public class LoginActivity extends AppCompatActivity {
         registerLink.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Aquí normalmente abriríamos una actividad de registro
-                // Por ahora, mostramos un mensaje
-                Toast.makeText(LoginActivity.this, "Función de registro en desarrollo", Toast.LENGTH_SHORT).show();
+                // Rellenar automáticamente las credenciales de prueba
+                emailInput.setText("test@example.com");
+                passwordInput.setText("password");
                 
-                // Código para crear un usuario de prueba
-                createTestUser();
+                Toast.makeText(LoginActivity.this, 
+                        "Credenciales de prueba aplicadas. Presiona LOGIN para ingresar.",
+                        Toast.LENGTH_LONG).show();
+                
+                // También podemos crear el usuario si no existe
+                User existingUser = userDAO.getUserByEmail("test@example.com");
+                if (existingUser == null) {
+                    createTestUser();
+                }
             }
         });
     }
@@ -78,7 +88,36 @@ public class LoginActivity extends AppCompatActivity {
      */
     private boolean isUserLoggedIn() {
         SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-        return prefs.getBoolean(KEY_IS_LOGGED_IN, false);
+        boolean isLoggedIn = prefs.getBoolean(KEY_IS_LOGGED_IN, false);
+        
+        if (isLoggedIn) {
+            // Verificamos también que exista un ID de usuario
+            long userId = prefs.getLong(KEY_USER_ID, -1);
+            String userEmail = prefs.getString(KEY_USER_EMAIL, "");
+            
+            // Si no hay ID o email, consideramos que no hay sesión
+            if (userId == -1 || userEmail.isEmpty()) {
+                // Limpiar preferencias corruptas
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.clear();
+                editor.apply();
+                return false;
+            }
+            
+            // Verificar que el usuario existe en la BD
+            User user = userDAO.getUserById(userId);
+            if (user == null) {
+                // El usuario fue eliminado de la BD, limpiar preferencias
+                SharedPreferences.Editor editor = prefs.edit();
+                editor.clear();
+                editor.apply();
+                return false;
+            }
+            
+            return true;
+        }
+        
+        return false;
     }
     
     /**
@@ -114,6 +153,9 @@ public class LoginActivity extends AppCompatActivity {
         String email = emailInput.getText().toString().trim();
         String password = passwordInput.getText().toString().trim();
         
+        // Log para depuración
+        Log.d("LoginActivity", "Intentando login con: " + email + " / " + password);
+        
         // Validar campos
         boolean cancel = false;
         View focusView = null;
@@ -140,16 +182,26 @@ public class LoginActivity extends AppCompatActivity {
             // Hay un error en los campos, no intentar login
             focusView.requestFocus();
         } else {
+            // Verificar si el usuario existe primero
+            User user = userDAO.getUserByEmail(email);
+            if (user == null) {
+                Toast.makeText(this, "No existe usuario con ese email", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
             // Intentar autenticar con la base de datos
             User authenticatedUser = userDAO.authenticateUser(email, password);
             
             if (authenticatedUser != null) {
                 // Login exitoso
+                Toast.makeText(this, "Login exitoso, bienvenido " + authenticatedUser.getName(), Toast.LENGTH_SHORT).show();
                 saveUserSession(authenticatedUser);
                 navigateToDashboard();
             } else {
                 // Login fallido
-                Toast.makeText(this, R.string.error_login_failed, Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Contraseña incorrecta", Toast.LENGTH_SHORT).show();
+                passwordInput.setError("Contraseña incorrecta");
+                passwordInput.requestFocus();
             }
         }
     }
@@ -165,13 +217,63 @@ public class LoginActivity extends AppCompatActivity {
      * Crea un usuario de prueba para facilitar el desarrollo
      */
     private void createTestUser() {
+        // Primero verificar si el usuario ya existe
+        User existingUser = userDAO.getUserByEmail("test@example.com");
+        
+        if (existingUser != null) {
+            // Si ya existe, mostrar mensaje y prellenar las credenciales
+            Toast.makeText(this, "Usuario de prueba ya existe. Usa: test@example.com / password", Toast.LENGTH_LONG).show();
+            emailInput.setText("test@example.com");
+            passwordInput.setText("password");
+            return;
+        }
+        
+        // Si no existe, crearlo
         User testUser = new User("Usuario Prueba", "test@example.com", "password");
         long userId = userDAO.insertUser(testUser);
         
         if (userId > 0) {
             Toast.makeText(this, "Usuario de prueba creado con éxito. Email: test@example.com, Password: password", Toast.LENGTH_LONG).show();
+            // Prellenar los campos de login
+            emailInput.setText("test@example.com");
+            passwordInput.setText("password");
         } else {
-            Toast.makeText(this, "No se pudo crear el usuario de prueba (posiblemente ya existe)", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "No se pudo crear el usuario de prueba. Intenta nuevamente.", Toast.LENGTH_SHORT).show();
         }
+    }
+    
+    /**
+     * Asegura que el usuario de prueba existe en la base de datos
+     */
+    private void ensureTestUserExists() {
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        boolean testUserChecked = prefs.getBoolean("test_user_checked", false);
+        
+        // Si ya se verificó anteriormente, no hacer nada
+        if (testUserChecked) {
+            return;
+        }
+        
+        // Verificar si el usuario de prueba ya existe
+        User testUser = userDAO.getUserByEmail("test@example.com");
+        
+        if (testUser == null) {
+            // No existe, crearlo silenciosamente
+            User newTestUser = new User("Usuario Prueba", "test@example.com", "password");
+            long userId = userDAO.insertUser(newTestUser);
+            
+            if (userId > 0) {
+                Log.d("LoginActivity", "Usuario de prueba creado automáticamente");
+            } else {
+                Log.e("LoginActivity", "No se pudo crear el usuario de prueba automáticamente");
+            }
+        } else {
+            Log.d("LoginActivity", "Usuario de prueba ya existe en la BD");
+        }
+        
+        // Marcar que ya se verificó
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putBoolean("test_user_checked", true);
+        editor.apply();
     }
 }
