@@ -38,6 +38,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String KEY_ACTIVITY_DISTANCE = "distance";
     public static final String KEY_ACTIVITY_DATE = "date";
     public static final String KEY_ACTIVITY_NOTES = "notes";
+    public static final String KEY_ACTIVITY_PHOTO_PATH = "photo_path";
     public static final String KEY_ACTIVITY_LATITUDE = "latitude";
     public static final String KEY_ACTIVITY_LONGITUDE = "longitude";
 
@@ -114,16 +115,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 "(" +
                 KEY_ACTIVITY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
                 KEY_ACTIVITY_USER_ID_FK + " INTEGER," +
-                KEY_ACTIVITY_TYPE + " TEXT," +
-                KEY_ACTIVITY_DURATION + " INTEGER," +
+                KEY_ACTIVITY_TYPE + " TEXT NOT NULL," +
+                KEY_ACTIVITY_DURATION + " INTEGER NOT NULL," +
                 KEY_ACTIVITY_CALORIES + " INTEGER," +
                 KEY_ACTIVITY_DISTANCE + " REAL," +
-                KEY_ACTIVITY_DATE + " DATETIME DEFAULT CURRENT_TIMESTAMP," +
+                KEY_ACTIVITY_DATE + " DATETIME," +
                 KEY_ACTIVITY_NOTES + " TEXT," +
+                KEY_ACTIVITY_PHOTO_PATH + " TEXT," +
                 KEY_ACTIVITY_LATITUDE + " REAL," +
                 KEY_ACTIVITY_LONGITUDE + " REAL," +
-                "FOREIGN KEY(" + KEY_ACTIVITY_USER_ID_FK + ") REFERENCES " + TABLE_USERS + "(" + KEY_USER_ID + ")" +
-                ")";
+                "FOREIGN KEY(" + KEY_ACTIVITY_USER_ID_FK + ") REFERENCES " + TABLE_USERS + "(" + KEY_USER_ID + ") ON DELETE CASCADE" +
+                ");";
 
         String CREATE_FOOD_ENTRIES_TABLE = "CREATE TABLE " + TABLE_FOOD_ENTRIES +
                 "(" +
@@ -250,5 +252,57 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public void onConfigure(SQLiteDatabase db) {
         super.onConfigure(db);
         db.setForeignKeyConstraintsEnabled(true);
+    }
+
+    /**
+     * Verifica si la tabla physical_activities existe y tiene la estructura correcta
+     */
+    public void verifyPhysicalActivitiesTable() {
+        SQLiteDatabase db = getWritableDatabase();
+        
+        try {
+            // Verificar si la tabla existe
+            db.query(TABLE_PHYSICAL_ACTIVITIES, null, null, null, null, null, null);
+        } catch (Exception e) {
+            // Si la tabla no existe o está corrupta, recrearla
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_PHYSICAL_ACTIVITIES);
+            
+            String CREATE_PHYSICAL_ACTIVITIES_TABLE = "CREATE TABLE " + TABLE_PHYSICAL_ACTIVITIES +
+                "(" +
+                KEY_ACTIVITY_ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
+                KEY_ACTIVITY_USER_ID_FK + " INTEGER," +
+                KEY_ACTIVITY_TYPE + " TEXT NOT NULL," +
+                KEY_ACTIVITY_DURATION + " INTEGER NOT NULL," +
+                KEY_ACTIVITY_CALORIES + " INTEGER," +
+                KEY_ACTIVITY_DISTANCE + " REAL," +
+                KEY_ACTIVITY_DATE + " DATETIME," +
+                KEY_ACTIVITY_NOTES + " TEXT," +
+                KEY_ACTIVITY_PHOTO_PATH + " TEXT," +
+                KEY_ACTIVITY_LATITUDE + " REAL," +
+                KEY_ACTIVITY_LONGITUDE + " REAL," +
+                "FOREIGN KEY(" + KEY_ACTIVITY_USER_ID_FK + ") REFERENCES " + TABLE_USERS + "(" + KEY_USER_ID + ") ON DELETE CASCADE" +
+                ");";
+            
+            db.execSQL(CREATE_PHYSICAL_ACTIVITIES_TABLE);
+        }
+    }
+
+    /**
+     * Incrementa la versión de la base de datos y fuerza una actualización
+     */
+    public void forceUpgrade() {
+        SQLiteDatabase db = getWritableDatabase();
+        int newVersion = DATABASE_VERSION + 1;
+        db.setVersion(newVersion);
+        onUpgrade(db, DATABASE_VERSION, newVersion);
+    }
+
+    @Override
+    public void onOpen(SQLiteDatabase db) {
+        super.onOpen(db);
+        if (!db.isReadOnly()) {
+            // Habilitar foreign keys
+            db.execSQL("PRAGMA foreign_keys=ON;");
+        }
     }
 } 

@@ -3,6 +3,9 @@ package com.example.trackerhealth;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.location.Location;
 import android.net.Uri;
@@ -39,7 +42,9 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.trackerhealth.adapters.ActivityAdapter;
 import com.example.trackerhealth.dao.PhysicalActivityDAO;
+import com.example.trackerhealth.database.DatabaseHelper;
 import com.example.trackerhealth.model.PhysicalActivity;
+import com.example.trackerhealth.util.LocationUtils;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
@@ -56,7 +61,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
-import com.example.trackerhealth.util.LocationUtils;
+import android.content.ContentValues;
 
 public class PhysicalActivityTracker extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener {
 
@@ -64,6 +69,7 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private Spinner activityTypeSpinner;
     private EditText durationEditText;
     private EditText distanceEditText;
+    private EditText notesEditText;
     private CheckBox useGpsCheckbox;
     private LinearLayout gpsContainer;
     private Button startTrackingButton;
@@ -130,54 +136,176 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_physical_tracker);
+        
+        // Verificar y recrear la tabla de actividades físicas si es necesario
+        DatabaseHelper.getInstance(this).verifyPhysicalActivitiesTable();
+        
+        // Verificar que existe un usuario por defecto
+        checkAndCreateDefaultUser();
+        
+        try {
+        // Inicializar lista de actividades (antes de usarla)
+        activityList = new ArrayList<>();
 
-        // Inicializar base de datos
+        // Verificar y reparar base de datos
+        if (!com.example.trackerhealth.util.DatabaseUtils.verifyAllTables(this)) {
+            Log.w("PhysicalActivityTracker", "Database verification failed, attempting repair");
+            
+            // Intentar recrear la tabla de actividades
+            if (com.example.trackerhealth.util.DatabaseUtils.recreatePhysicalActivitiesTable(this)) {
+                Log.d("PhysicalActivityTracker", "Physical activities table recreated successfully");
+            } else {
+                Log.e("PhysicalActivityTracker", "Failed to recreate physical activities table");
+            }
+        }
+        
+        // Asegurar que existe el usuario
+        if (!com.example.trackerhealth.util.DatabaseUtils.ensureUserExists(this, 1)) {
+            Log.e("PhysicalActivityTracker", "Failed to ensure user exists");
+            Toast.makeText(this, "Error: Could not create default user", Toast.LENGTH_LONG).show();
+        }
+        
+        // Intentar crear una actividad de prueba para verificar si funciona
+        long testActivityId = com.example.trackerhealth.util.DatabaseUtils.createTestActivity(this);
+        if (testActivityId > 0) {
+            Log.d("PhysicalActivityTracker", "Test activity created successfully with ID: " + testActivityId);
+        } else {
+            Log.e("PhysicalActivityTracker", "Failed to create test activity");
+        }
+        
+        // Inicializar DAO y componentes regulares
         activityDAO = new PhysicalActivityDAO(this);
         
-        // Inicializar componentes
-        bottomNavigationView = findViewById(R.id.bottom_navigation);
-        activityTypeSpinner = findViewById(R.id.activity_type_spinner);
-        durationEditText = findViewById(R.id.duration_input);
-        distanceEditText = findViewById(R.id.distance_input);
-        useGpsCheckbox = findViewById(R.id.use_gps_checkbox);
-        gpsContainer = findViewById(R.id.gps_container);
-        startTrackingButton = findViewById(R.id.start_tracking_button);
-        saveActivityButton = findViewById(R.id.save_activity_button);
-        takePhotoButton = findViewById(R.id.take_photo_button);
-        activityPhotoPreview = findViewById(R.id.activity_photo_preview);
-        
-        // Inicializar componentes de ubicación
-        locationStatusTextView = findViewById(R.id.location_status_text);
-        currentSpeedTextView = findViewById(R.id.current_speed_text);
-        totalDistanceTextView = findViewById(R.id.total_distance_text);
-
-        // Inicializar vistas para actividades recientes
-        noRecentActivitiesText = findViewById(R.id.no_recent_activities_text);
-        recentActivitiesRecyclerView = findViewById(R.id.recent_activities_recycler_view);
-        
-        // Configurar bottom navigation
-        bottomNavigationView.setOnNavigationItemSelectedListener(this);
-        bottomNavigationView.setSelectedItemId(R.id.navigation_activity);
-
-        // Configurar spinner de actividades
-        String[] activityTypes = {"Running", "Walking", "Cycling", "Swimming", "Gym workout", "Other"};
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, activityTypes);
-        activityTypeSpinner.setAdapter(adapter);
+        // Inicializar componentes UI
+        initializeViews();
 
         // Inicializar el cliente de ubicación fusionada
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        
-        // Configurar solicitud de ubicación
         createLocationRequest();
-        
-        // Configurar callback de ubicación
         createLocationCallback();
+        
+        // Configurar listeners y recyclerView
+        setupListeners();
+        setupRecyclerView();
+        
+        // Cargar actividades recientes
+        loadRecentActivities();
+        
+        Log.d("PhysicalActivityTracker", "Initializing successful");
+        } catch (Exception e) {
+            Log.e("PhysicalActivityTracker", "Error in onCreate: " + e.getMessage(), e);
+            Toast.makeText(this, "Error initializing activity: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            
+            // Manejar la excepción según corresponda
+            if (e instanceof Resources.NotFoundException) {
+                // Error de recursos
+                Toast.makeText(this, "Resource not found", Toast.LENGTH_SHORT).show();
+            } else if (e instanceof NullPointerException) {
+                // Referencia nula
+                Toast.makeText(this, "Null reference error", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    /**
+     * Verifica si existe el usuario por defecto y lo crea si es necesario
+     */
+    private void checkAndCreateDefaultUser() {
+        try {
+            SQLiteDatabase db = DatabaseHelper.getInstance(this).getReadableDatabase();
+            String query = "SELECT COUNT(*) FROM " + DatabaseHelper.TABLE_USERS + 
+                    " WHERE " + DatabaseHelper.KEY_USER_ID + " = ?";
+            
+            Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(currentUserId)});
+            
+            boolean userExists = false;
+            if (cursor != null && cursor.moveToFirst()) {
+                userExists = cursor.getInt(0) > 0;
+                cursor.close();
+            }
+            
+            if (!userExists) {
+                Log.d("PhysicalActivityTracker", "Creating default user");
+                
+                db = DatabaseHelper.getInstance(this).getWritableDatabase();
+                ContentValues values = new ContentValues();
+                values.put(DatabaseHelper.KEY_USER_ID, currentUserId);
+                values.put(DatabaseHelper.KEY_USER_NAME, "Default User");
+                values.put(DatabaseHelper.KEY_USER_EMAIL, "user@example.com");
+                values.put(DatabaseHelper.KEY_USER_PASSWORD, "password");
+                values.put(DatabaseHelper.KEY_USER_HEIGHT, 170);
+                values.put(DatabaseHelper.KEY_USER_WEIGHT, 70);
+                values.put(DatabaseHelper.KEY_USER_AGE, 30);
+                values.put(DatabaseHelper.KEY_USER_GENDER, "Other");
+                
+                long userId = db.insert(DatabaseHelper.TABLE_USERS, null, values);
+                
+                if (userId > 0) {
+                    Log.d("PhysicalActivityTracker", "Default user created successfully");
+                } else {
+                    Log.e("PhysicalActivityTracker", "Failed to create default user");
+                }
+            } else {
+                Log.d("PhysicalActivityTracker", "Default user already exists");
+            }
+        } catch (Exception e) {
+            Log.e("PhysicalActivityTracker", "Error checking/creating default user: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Inicializa todas las vistas de manera segura
+     */
+    private void initializeViews() {
+        try {
+            // Inicializar vistas principales
+            activityTypeSpinner = findViewById(R.id.activity_type_spinner);
+            durationEditText = findViewById(R.id.duration_edit_text);
+            distanceEditText = findViewById(R.id.distance_edit_text);
+            notesEditText = findViewById(R.id.notes_edit_text);
+            useGpsCheckbox = findViewById(R.id.use_gps_checkbox);
+            saveActivityButton = findViewById(R.id.save_activity_button);
+            
+            // Inicializar RecyclerView y sus componentes
+            recentActivitiesRecyclerView = findViewById(R.id.recent_activities_recycler_view);
+            noRecentActivitiesText = findViewById(R.id.no_recent_activities_text);
+            
+            // Configurar RecyclerView
+            activityList = new ArrayList<>();
+            activityAdapter = new ActivityAdapter(this, activityList);
+            recentActivitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+            recentActivitiesRecyclerView.setAdapter(activityAdapter);
+            
+            // Cargar actividades recientes
+            loadRecentActivities();
+            
+            // Configurar Spinner de tipos de actividad
+            ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
+                    R.array.activity_types, android.R.layout.simple_spinner_item);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            activityTypeSpinner.setAdapter(adapter);
+            
+        } catch (Exception e) {
+            Log.e("PhysicalActivityTracker", "Error initializing views: " + e.getMessage(), e);
+            Toast.makeText(this, "Error initializing views", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    /**
+     * Configura los listeners para los componentes interactivos de manera segura
+     */
+    private void setupListeners() {
+        try {
+            // Configurar bottom navigation
+            if (bottomNavigationView != null) {
+                bottomNavigationView.setOnNavigationItemSelectedListener(this);
+                bottomNavigationView.setSelectedItemId(R.id.navigation_activity);
+            }
         
         // Configurar checkbox de GPS
         if (useGpsCheckbox != null && gpsContainer != null) {
             useGpsCheckbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 gpsContainer.setVisibility(isChecked ? View.VISIBLE : View.GONE);
-                
                 if (isChecked && !checkLocationPermission()) {
                     requestLocationPermission();
                 }
@@ -188,7 +316,6 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         if (startTrackingButton != null) {
             startTrackingButton.setOnClickListener(v -> {
                 if (!isTrackingLocation) {
-                    // Verificar permisos antes de iniciar el seguimiento
                     if (checkLocationPermission()) {
                         startLocationTracking();
                     } else {
@@ -202,28 +329,25 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         
         // Configurar botón de foto
         if (takePhotoButton != null) {
-            takePhotoButton.setOnClickListener(v -> {
-                showImageSourceDialog();
-            });
+                takePhotoButton.setOnClickListener(v -> showImageSourceDialog());
         }
 
         // Configurar botón de guardar
+            if (saveActivityButton != null) {
         saveActivityButton.setOnClickListener(v -> {
-            if (isEditing) {
-                updateActivity();
-            } else {
-                saveActivityToDatabase();
+                    if (isEditing) {
+                        updateActivity();
+                    } else {
+            saveActivityToDatabase();
+                    }
+                });
             }
-        });
-
-        // Inicializar datos
-        activityList = new ArrayList<>();
-        
-        // Configurar RecyclerView
-        setupRecyclerView();
-        
-        // Cargar actividades recientes
-        loadRecentActivities();
+            
+            Log.d("PhysicalActivityTracker", "Listeners setup successfully");
+        } catch (Exception e) {
+            Log.e("PhysicalActivityTracker", "Error setting up listeners: " + e.getMessage(), e);
+            Toast.makeText(this, "Error setting up interactive components", Toast.LENGTH_SHORT).show();
+        }
     }
     
     /**
@@ -549,6 +673,7 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private void resetPhotoPreview() {
         if (activityPhotoPreview != null) {
             activityPhotoPreview.setImageResource(android.R.drawable.ic_menu_camera);
+            activityPhotoPreview.setScaleType(ImageView.ScaleType.CENTER);
         }
         photoUri = null;
         currentPhotoPath = null;
@@ -638,106 +763,176 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     }
     
     /**
-     * Guarda una nueva actividad física en la base de datos
+     * Guarda una nueva actividad física en la base de datos con fallback
      */
     private void saveActivityToDatabase() {
         try {
-            // Validar campos obligatorios
+            // 1. Validar campos obligatorios
             if (TextUtils.isEmpty(durationEditText.getText())) {
-                durationEditText.setError(getString(R.string.error_field_required));
+                durationEditText.setError("Duration is required");
                 durationEditText.requestFocus();
+                Log.e("PhysicalActivityTracker", "Validation error: Duration is required");
                 return;
             }
+            
+            Log.d("PhysicalActivityTracker", "Starting to save activity to database");
 
-            // Obtener valores de los campos
+            // 2. Obtener valores de los campos
             String activityType = activityTypeSpinner.getSelectedItem().toString();
             int duration = Integer.parseInt(durationEditText.getText().toString().trim());
             double distance = 0;
-            String notes = "";
 
-            // Obtener distancia si está disponible
+            Log.d("PhysicalActivityTracker", "Initial values: type=" + activityType + ", duration=" + duration);
+
+            // 3. Obtener distancia si está disponible
             if (!TextUtils.isEmpty(distanceEditText.getText())) {
                 distance = Double.parseDouble(distanceEditText.getText().toString().trim());
+                Log.d("PhysicalActivityTracker", "Distance from input: " + distance);
             } else if (useGpsCheckbox.isChecked() && totalDistance > 0) {
                 distance = totalDistance;
+                Log.d("PhysicalActivityTracker", "Distance from GPS: " + distance);
             }
 
-            // Calcular calorías quemadas
+            // 4. Calcular calorías quemadas
             int calories = estimateCaloriesBurned(activityType, duration, distance);
+            Log.d("PhysicalActivityTracker", "Calories calculated: " + calories);
 
-            // Si usamos GPS, añadir metadatos a las notas
+            // 5. Construir notas y metadata
+            StringBuilder notesBuilder = new StringBuilder();
+            
+            // Añadir información de GPS si está disponible
             if (useGpsCheckbox.isChecked() && currentLatitude != 0 && currentLongitude != 0) {
-                notes = String.format(Locale.getDefault(), 
-                        "totalDistance:%.2f;trackingEnabled:true", 
-                        totalDistance);
+                notesBuilder.append("gpsTracking:true");
+                notesBuilder.append(",totalDistance:").append(String.format(Locale.US, "%.2f", totalDistance));
+                Log.d("PhysicalActivityTracker", "GPS info added to notes");
             }
 
-            // Añadir path de imagen si existe
+            // Añadir información de foto si existe
             if (photoUri != null) {
-                if (!TextUtils.isEmpty(notes)) {
-                    notes += ";";
+                if (notesBuilder.length() > 0) {
+                    notesBuilder.append(",");
                 }
-                notes += "imagePath:" + (currentPhotoPath != null ? currentPhotoPath : photoUri.toString());
+                notesBuilder.append("photoPath:").append(photoUri.toString());
+                Log.d("PhysicalActivityTracker", "Photo info added to notes: " + photoUri);
             }
 
-            // Crear objeto de actividad
-            PhysicalActivity activity = new PhysicalActivity(currentUserId, activityType, duration, calories, distance, notes);
+            String notes = notesBuilder.toString();
+            Log.d("PhysicalActivityTracker", "Final notes: " + notes);
 
-            // Establecer fecha actual
+            // 6. Crear objeto de actividad
+            PhysicalActivity activity = new PhysicalActivity(
+                currentUserId,
+                activityType,
+                duration,
+                calories,
+                distance,
+                notes
+            );
+
+            // 7. Establecer fecha actual
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
-            activity.setDate(sdf.format(new Date()));
+            String currentDate = sdf.format(new Date());
+            activity.setDate(currentDate);
+            Log.d("PhysicalActivityTracker", "Activity date set: " + currentDate);
 
-            // Establecer coordenadas GPS si están disponibles
+            // 8. Establecer coordenadas GPS si están disponibles
             if (useGpsCheckbox.isChecked() && currentLatitude != 0 && currentLongitude != 0) {
                 activity.setLatitude(currentLatitude);
                 activity.setLongitude(currentLongitude);
+                Log.d("PhysicalActivityTracker", "GPS coordinates set: " + currentLatitude + "," + currentLongitude);
+            }
+            
+            // 9. Guardar en la base de datos
+            Log.d("PhysicalActivityTracker", "About to insert activity into database using DAO");
+            long activityId = activityDAO.insertActivity(activity);
+            Log.d("PhysicalActivityTracker", "DAO insert result: " + activityId);
+
+            // 10. Si falla, intentar guardar directamente con SQLite
+            if (activityId <= 0) {
+                Log.w("PhysicalActivityTracker", "DAO insert failed, trying direct SQLite insert");
+                
+                // Crear ContentValues
+                ContentValues values = new ContentValues();
+                values.put(DatabaseHelper.KEY_ACTIVITY_USER_ID_FK, activity.getUserId());
+                values.put(DatabaseHelper.KEY_ACTIVITY_TYPE, activity.getActivityType());
+                values.put(DatabaseHelper.KEY_ACTIVITY_DURATION, activity.getDuration());
+                values.put(DatabaseHelper.KEY_ACTIVITY_CALORIES, activity.getCaloriesBurned());
+                values.put(DatabaseHelper.KEY_ACTIVITY_DISTANCE, activity.getDistance());
+                values.put(DatabaseHelper.KEY_ACTIVITY_DATE, activity.getDate());
+                values.put(DatabaseHelper.KEY_ACTIVITY_NOTES, activity.getNotes());
+                values.put(DatabaseHelper.KEY_ACTIVITY_LATITUDE, activity.getLatitude());
+                values.put(DatabaseHelper.KEY_ACTIVITY_LONGITUDE, activity.getLongitude());
+                
+                // Intentar insertar directamente
+                SQLiteDatabase db = DatabaseHelper.getInstance(this).getWritableDatabase();
+                db.beginTransaction();
+                try {
+                    activityId = db.insert(DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES, null, values);
+            if (activityId > 0) {
+                        db.setTransactionSuccessful();
+                        Log.d("PhysicalActivityTracker", "Direct SQLite insert succeeded with ID: " + activityId);
+                    } else {
+                        Log.e("PhysicalActivityTracker", "Direct SQLite insert also failed");
+                    }
+                } catch (Exception e) {
+                    Log.e("PhysicalActivityTracker", "Error in direct SQLite insert: " + e.getMessage(), e);
+                } finally {
+                    db.endTransaction();
+                }
             }
 
-            // Guardar en la base de datos
-            long activityId = activityDAO.insertActivity(activity);
-
             if (activityId > 0) {
-                String message = "Activity saved successfully";
+                // 11. Procesar datos adicionales
+                String successMessage = "Activity saved successfully (ID: " + activityId + ")";
 
-                // Si tenemos datos de ruta GPS, guardarlos
+                // Guardar ruta GPS si está disponible
                 if (useGpsCheckbox.isChecked() && !locationHistory.isEmpty()) {
-                    String routeFilePath = LocationUtils.saveRouteData(
-                            this, 
-                            activityId, 
-                            locationHistory
-                    );
-
+                    Log.d("PhysicalActivityTracker", "Saving route data with " + locationHistory.size() + " points");
+                    String routeFilePath = LocationUtils.saveRouteData(this, activityId, locationHistory);
                     if (routeFilePath != null) {
-                        message += " with GPS route";
+                        successMessage += " with GPS route";
+                        Log.d("PhysicalActivityTracker", "Route saved to: " + routeFilePath);
                     }
                 }
-
+                
+                // Confirmar si se guardó con foto
                 if (photoUri != null) {
-                    message += " with photo";
+                    successMessage += " with photo";
                 }
-
-                Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-
-                // Detener tracking si está activo
+                
+                // 12. Mostrar mensaje de éxito
+                Toast.makeText(this, successMessage, Toast.LENGTH_SHORT).show();
+                Log.i("PhysicalActivityTracker", successMessage);
+                
+                // 13. Limpiar y resetear
                 if (isTrackingLocation) {
                     stopLocationTracking();
                 }
-
-                // Limpiar campos y resetear estado
                 clearFields();
                 resetPhotoPreview();
                 
-                // Recargar la lista de actividades
+                // 14. Recargar lista de actividades
                 loadRecentActivities();
             } else {
-                Toast.makeText(this, "Error saving activity", Toast.LENGTH_SHORT).show();
+                String errorMsg = "Failed to save activity after multiple attempts";
+                Log.e("PhysicalActivityTracker", errorMsg);
+                
+                // Mensaje más descriptivo para el usuario
+                new AlertDialog.Builder(this)
+                    .setTitle("Database Error")
+                    .setMessage("Failed to save activity. Please check database permissions and storage space.")
+                    .setPositiveButton("OK", null)
+                    .show();
             }
-
+            
         } catch (NumberFormatException e) {
-            Toast.makeText(this, "Please enter valid numbers", Toast.LENGTH_SHORT).show();
+            String errorMsg = "Please enter valid numbers";
+            Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
+            Log.e("PhysicalActivityTracker", "Error parsing numbers: " + e.getMessage(), e);
         } catch (Exception e) {
-            Log.e("PhysicalActivityTracker", "Error saving activity: " + e.getMessage());
-            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            String errorMsg = "Error: " + e.getMessage();
+            Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
+            Log.e("PhysicalActivityTracker", "Error saving activity: " + e.getMessage(), e);
         }
     }
     
@@ -773,16 +968,27 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     }
     
     /**
-     * Limpia los campos después de guardar
+     * Limpia todos los campos del formulario y resetea el estado
      */
     private void clearFields() {
+        // Limpiar campos de texto
         durationEditText.setText("");
         distanceEditText.setText("");
         
-        // Resetear variables de ubicación
+        // Resetear spinner al primer elemento
+        activityTypeSpinner.setSelection(0);
+        
+        // Resetear checkbox y contenedor GPS
+        useGpsCheckbox.setChecked(false);
+        gpsContainer.setVisibility(View.GONE);
+        
+        // Resetear variables de tracking
         totalDistance = 0;
         locationHistory.clear();
+        currentLatitude = 0;
+        currentLongitude = 0;
         
+        // Resetear textos de GPS
         if (totalDistanceTextView != null) {
             totalDistanceTextView.setText("0.00 km");
         }
@@ -793,11 +999,15 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
             locationStatusTextView.setText("Waiting for GPS...");
         }
         
-        // Volver al primer elemento del spinner
-        activityTypeSpinner.setSelection(0);
+        // Detener tracking si está activo
+        if (isTrackingLocation) {
+            stopLocationTracking();
+        }
         
         // Resetear estado de edición
-        resetEditingState();
+        currentEditingActivity = null;
+        isEditing = false;
+        saveActivityButton.setText(R.string.save_activity);
     }
     
     @Override
@@ -826,23 +1036,41 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
 
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        Intent intent;
-        
         int itemId = item.getItemId();
+
+        // Si ya estamos en la actividad actual, no hacer nada
+        if (itemId == R.id.navigation_activity) {
+            return true;
+        }
+
+        // Preparar la intent para la nueva actividad
+        Intent intent = null;
         
         if (itemId == R.id.navigation_dashboard) {
             intent = new Intent(this, DashboardActivity.class);
-            startActivity(intent);
-            return true;
-        } else if (itemId == R.id.navigation_activity) {
-            return true;
         } else if (itemId == R.id.navigation_food) {
             intent = new Intent(this, FoodTrackerActivity.class);
-            startActivity(intent);
-            return true;
         } else if (itemId == R.id.navigation_reports) {
             intent = new Intent(this, ReportsActivity.class);
+        }
+        
+        // Si tenemos una intent válida, iniciar la actividad
+        if (intent != null) {
+            // Detener el tracking de GPS si está activo
+            if (isTrackingLocation) {
+                stopLocationTracking();
+            }
+            
+            // Limpiar recursos
+            if (gpsTimeoutHandler != null) {
+                gpsTimeoutHandler.removeCallbacksAndMessages(null);
+            }
+            
+            // Añadir flags para evitar comportamientos inesperados
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
+            
+            // No llamar a finish() para mantener la actividad en el back stack
             return true;
         }
         
@@ -854,63 +1082,121 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
      * Carga las actividades recientes del usuario
      */
     private void loadRecentActivities() {
+        try {
+            Log.d("PhysicalActivityTracker", "Loading recent activities for user: " + currentUserId);
+            
         // Limpiar lista anterior
         activityList.clear();
         
-        try {
+            // Verificar que el RecyclerView y el adapter estén inicializados
+            if (recentActivitiesRecyclerView == null || activityAdapter == null) {
+                Log.e("PhysicalActivityTracker", "RecyclerView or adapter is null");
+                return;
+            }
+            
             // Obtener actividades del usuario actual
             List<PhysicalActivity> recentActivities = activityDAO.getRecentActivities(currentUserId, 10);
+            
+            Log.d("PhysicalActivityTracker", "Found " + recentActivities.size() + " recent activities");
             
             if (recentActivities.isEmpty()) {
                 if (noRecentActivitiesText != null) {
                     noRecentActivitiesText.setVisibility(View.VISIBLE);
+                    Log.d("PhysicalActivityTracker", "No activities found, showing empty message");
                 }
                 if (recentActivitiesRecyclerView != null) {
                     recentActivitiesRecyclerView.setVisibility(View.GONE);
                 }
             } else {
+                // Registrar detalles de las actividades
+                for (PhysicalActivity activity : recentActivities) {
+                    Log.d("PhysicalActivityTracker", "Activity: ID=" + activity.getId() + 
+                            ", Type=" + activity.getActivityType() + 
+                            ", Date=" + activity.getDate());
+                }
+                
                 activityList.addAll(recentActivities);
+                
                 if (noRecentActivitiesText != null) {
                     noRecentActivitiesText.setVisibility(View.GONE);
                 }
                 if (recentActivitiesRecyclerView != null) {
                     recentActivitiesRecyclerView.setVisibility(View.VISIBLE);
+                    
+                    // Notificar cambios en el adaptador
                     if (activityAdapter != null) {
                         activityAdapter.notifyDataSetChanged();
+                        Log.d("PhysicalActivityTracker", "Adapter notified of data changes");
+                    } else {
+                        Log.e("PhysicalActivityTracker", "Activity adapter is null");
                     }
                 }
             }
         } catch (Exception e) {
-            Log.e("PhysicalActivityTracker", "Error al cargar actividades: " + e.getMessage());
+            Log.e("PhysicalActivityTracker", "Error loading activities: " + e.getMessage(), e);
+            
             if (noRecentActivitiesText != null) {
-                noRecentActivitiesText.setText("Error al cargar actividades");
+                noRecentActivitiesText.setText("Error: " + e.getMessage());
                 noRecentActivitiesText.setVisibility(View.VISIBLE);
             }
             if (recentActivitiesRecyclerView != null) {
                 recentActivitiesRecyclerView.setVisibility(View.GONE);
             }
+            
+            // Mostrar diálogo con detalles del error
+            new AlertDialog.Builder(this)
+                .setTitle("Database Error")
+                .setMessage("Error loading activities: " + e.getMessage() + 
+                        "\n\nPlease check the logs for details")
+                .setPositiveButton("OK", null)
+                .show();
         }
     }
 
+    /**
+     * Configura el RecyclerView de manera segura
+     */
     private void setupRecyclerView() {
-        recentActivitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        activityAdapter = new ActivityAdapter(this, activityList, new ActivityAdapter.OnActivityActionListener() {
-            @Override
-            public void onActivityClick(PhysicalActivity activity) {
-                // Mostrar detalles si se desea
+        try {
+            if (recentActivitiesRecyclerView == null) {
+                Log.e("PhysicalActivityTracker", "recentActivitiesRecyclerView is null");
+                return;
             }
-
-            @Override
-            public void onEditActivity(PhysicalActivity activity) {
-                startEditingActivity(activity);
-            }
-
-            @Override
-            public void onDeleteActivity(PhysicalActivity activity) {
-                showDeleteConfirmationDialog(activity);
-            }
-        });
-        recentActivitiesRecyclerView.setAdapter(activityAdapter);
+            
+            recentActivitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+            
+            activityAdapter = new ActivityAdapter(this, activityList, new ActivityAdapter.OnActivityActionListener() {
+                @Override
+                public void onActivityClick(PhysicalActivity activity) {
+                    // Mostrar detalles si se desea
+                    if (activity != null) {
+                        Toast.makeText(PhysicalActivityTracker.this, 
+                                "Activity: " + activity.getActivityType(), 
+                                Toast.LENGTH_SHORT).show();
+                    }
+                }
+    
+                @Override
+                public void onEditActivity(PhysicalActivity activity) {
+                    if (activity != null) {
+                        startEditingActivity(activity);
+                    }
+                }
+    
+                @Override
+                public void onDeleteActivity(PhysicalActivity activity) {
+                    if (activity != null) {
+                        showDeleteConfirmationDialog(activity);
+                    }
+                }
+            });
+            
+            recentActivitiesRecyclerView.setAdapter(activityAdapter);
+            Log.d("PhysicalActivityTracker", "RecyclerView setup successfully");
+        } catch (Exception e) {
+            Log.e("PhysicalActivityTracker", "Error setting up RecyclerView: " + e.getMessage(), e);
+            Toast.makeText(this, "Error setting up activity list", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void startEditingActivity(PhysicalActivity activity) {

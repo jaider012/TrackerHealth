@@ -18,18 +18,18 @@ public class PhysicalActivityDAO {
     private final DatabaseHelper dbHelper;
 
     // Table and column names
-    private static final String TABLE_ACTIVITIES = "physical_activities";
-    private static final String COLUMN_ID = "id";
-    private static final String COLUMN_USER_ID = "user_id";
-    private static final String COLUMN_ACTIVITY_TYPE = "activity_type";
-    private static final String COLUMN_DURATION = "duration";
-    private static final String COLUMN_CALORIES_BURNED = "calories_burned";
-    private static final String COLUMN_DISTANCE = "distance";
-    private static final String COLUMN_DATE = "date";
-    private static final String COLUMN_NOTES = "notes";
-    private static final String COLUMN_PHOTO_PATH = "photo_path";
-    private static final String COLUMN_LATITUDE = "latitude";
-    private static final String COLUMN_LONGITUDE = "longitude";
+    private static final String TABLE_ACTIVITIES = DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES;
+    private static final String COLUMN_ID = DatabaseHelper.KEY_ACTIVITY_ID;
+    private static final String COLUMN_USER_ID = DatabaseHelper.KEY_ACTIVITY_USER_ID_FK;
+    private static final String COLUMN_ACTIVITY_TYPE = DatabaseHelper.KEY_ACTIVITY_TYPE;
+    private static final String COLUMN_DURATION = DatabaseHelper.KEY_ACTIVITY_DURATION;
+    private static final String COLUMN_CALORIES_BURNED = DatabaseHelper.KEY_ACTIVITY_CALORIES;
+    private static final String COLUMN_DISTANCE = DatabaseHelper.KEY_ACTIVITY_DISTANCE;
+    private static final String COLUMN_DATE = DatabaseHelper.KEY_ACTIVITY_DATE;
+    private static final String COLUMN_NOTES = DatabaseHelper.KEY_ACTIVITY_NOTES;
+    private static final String COLUMN_PHOTO_PATH = DatabaseHelper.KEY_ACTIVITY_PHOTO_PATH;
+    private static final String COLUMN_LATITUDE = DatabaseHelper.KEY_ACTIVITY_LATITUDE;
+    private static final String COLUMN_LONGITUDE = DatabaseHelper.KEY_ACTIVITY_LONGITUDE;
 
     public PhysicalActivityDAO(Context context) {
         this.dbHelper = DatabaseHelper.getInstance(context);
@@ -45,6 +45,8 @@ public class PhysicalActivityDAO {
         long activityId = -1;
         SQLiteDatabase db = dbHelper.getWritableDatabase();
         
+        Log.d(TAG, "Starting activity insertion. Activity type: " + activity.getActivityType());
+        
         db.beginTransaction();
         try {
             ContentValues values = new ContentValues();
@@ -59,11 +61,16 @@ public class PhysicalActivityDAO {
             values.put(COLUMN_LATITUDE, activity.getLatitude());
             values.put(COLUMN_LONGITUDE, activity.getLongitude());
             
+            Log.d(TAG, "ContentValues prepared: " + values.toString());
+            
             // Insertar la fila
             activityId = db.insertOrThrow(TABLE_ACTIVITIES, null, values);
+            Log.d(TAG, "Activity inserted with ID: " + activityId);
+            
             db.setTransactionSuccessful();
         } catch (Exception e) {
             Log.e(TAG, "Error al insertar actividad física: " + e.getMessage());
+            e.printStackTrace();
         } finally {
             db.endTransaction();
         }
