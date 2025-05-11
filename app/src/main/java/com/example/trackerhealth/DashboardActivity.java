@@ -119,12 +119,23 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
         
         // Configurar RecyclerView de comidas
         LinearLayoutManager mealsLayoutManager = new LinearLayoutManager(this);
+        mealsLayoutManager.setOrientation(LinearLayoutManager.VERTICAL);
         mealsRecyclerView.setLayoutManager(mealsLayoutManager);
         mealAdapter = new MealAdapter(this, mealList, meal -> {
             // Abrir detalles de la comida al hacer clic
             Toast.makeText(this, "Detalles de: " + meal.getName(), Toast.LENGTH_SHORT).show();
         });
         mealsRecyclerView.setAdapter(mealAdapter);
+        
+        // Agregar decoración para separar items
+        int spacing = getResources().getDimensionPixelSize(R.dimen.item_spacing);
+        mealsRecyclerView.addItemDecoration(new RecyclerView.ItemDecoration() {
+            @Override
+            public void getItemOffsets(@NonNull android.graphics.Rect outRect, @NonNull View view, 
+                                     @NonNull RecyclerView parent, @NonNull RecyclerView.State state) {
+                outRect.bottom = spacing;
+            }
+        });
     }
 
     private void setupWelcomeMessage() {
