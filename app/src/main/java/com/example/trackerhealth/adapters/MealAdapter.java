@@ -49,6 +49,11 @@ public class MealAdapter extends RecyclerView.Adapter<MealAdapter.MealViewHolder
         
         // Set time
         holder.tvTime.setText(meal.getTime());
+
+        // Set nutritional information
+        holder.tvProtein.setText(String.format("%.1fg P", meal.getProteins()));
+        holder.tvCarbs.setText(String.format("%.1fg C", meal.getCarbs()));
+        holder.tvFats.setText(String.format("%.1fg F", meal.getFats()));
         
         // Set click listener
         holder.itemView.setOnClickListener(v -> {
@@ -68,6 +73,9 @@ public class MealAdapter extends RecyclerView.Adapter<MealAdapter.MealViewHolder
         TextView tvMealType;
         TextView tvCalories;
         TextView tvTime;
+        TextView tvProtein;
+        TextView tvCarbs;
+        TextView tvFats;
         ImageView ivMealIcon;
 
         public MealViewHolder(@NonNull View itemView) {
@@ -76,6 +84,9 @@ public class MealAdapter extends RecyclerView.Adapter<MealAdapter.MealViewHolder
             tvMealType = itemView.findViewById(R.id.tv_meal_type);
             tvCalories = itemView.findViewById(R.id.tv_calories);
             tvTime = itemView.findViewById(R.id.tv_time);
+            tvProtein = itemView.findViewById(R.id.tv_protein);
+            tvCarbs = itemView.findViewById(R.id.tv_carbs);
+            tvFats = itemView.findViewById(R.id.tv_fats);
             ivMealIcon = itemView.findViewById(R.id.iv_meal_icon);
         }
     }

@@ -34,6 +34,7 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
     private BottomNavigationView bottomNavigationView;
     private Button logoutButton;
     private Button runningDashboardButton;
+    private Button viewAllMealsButton;
     private TextView welcomeText;
     private TextView noActivitiesText;
     private TextView noMealsText;
@@ -62,6 +63,9 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
     
     // ID de usuario actual (en un app real se tomaría del login)
     private long currentUserId = 1;
+    
+    // Estado de visualización de comidas
+    private boolean showingAllMeals = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -72,6 +76,7 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
         bottomNavigationView = findViewById(R.id.bottom_navigation);
         logoutButton = findViewById(R.id.logout_button);
         runningDashboardButton = findViewById(R.id.running_dashboard_button);
+        viewAllMealsButton = findViewById(R.id.view_all_meals_button);
         welcomeText = findViewById(R.id.welcome_text);
         noActivitiesText = findViewById(R.id.no_activities_text);
         noMealsText = findViewById(R.id.no_meals_text);
@@ -123,6 +128,11 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
         
         // Set Dashboard as selected by default
         bottomNavigationView.setSelectedItemId(R.id.navigation_dashboard);
+        
+        // Configurar el botón para ver todas las comidas
+        if (viewAllMealsButton != null) {
+            viewAllMealsButton.setOnClickListener(v -> toggleMealsView());
+        }
         
         // Cargar datos
         loadDashboardData();
@@ -229,38 +239,92 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
             // Crear comidas de ejemplo
             Meal breakfast = new Meal();
             breakfast.setUserId(currentUserId);
-            breakfast.setName("Avena con frutas");
+            breakfast.setName("Avena con frutas y nueces");
             breakfast.setMealType("Desayuno");
-            breakfast.setCalories(320);
-            breakfast.setProteins(12);
-            breakfast.setCarbs(45);
-            breakfast.setFats(8);
+            breakfast.setCalories(420);
+            breakfast.setProteins(14);
+            breakfast.setCarbs(65);
+            breakfast.setFats(12);
             breakfast.setDate(today);
             breakfast.setTime("07:30");
+            breakfast.setNotes("Con plátano, fresas y almendras");
+            
+            Meal snack1 = new Meal();
+            snack1.setUserId(currentUserId);
+            snack1.setName("Batido de proteínas");
+            snack1.setMealType("Snack");
+            snack1.setCalories(180);
+            snack1.setProteins(25);
+            snack1.setCarbs(15);
+            snack1.setFats(3);
+            snack1.setDate(today);
+            snack1.setTime("10:30");
             
             Meal lunch = new Meal();
             lunch.setUserId(currentUserId);
-            lunch.setName("Ensalada César con pollo");
+            lunch.setName("Pechuga de pollo a la plancha");
             lunch.setMealType("Almuerzo");
-            lunch.setCalories(450);
-            lunch.setProteins(35);
-            lunch.setCarbs(25);
-            lunch.setFats(22);
+            lunch.setCalories(550);
+            lunch.setProteins(45);
+            lunch.setCarbs(35);
+            lunch.setFats(25);
             lunch.setDate(today);
             lunch.setTime("13:00");
+            lunch.setNotes("Con ensalada y arroz integral");
+            
+            Meal snack2 = new Meal();
+            snack2.setUserId(currentUserId);
+            snack2.setName("Yogur con granola");
+            snack2.setMealType("Snack");
+            snack2.setCalories(220);
+            snack2.setProteins(10);
+            snack2.setCarbs(28);
+            snack2.setFats(8);
+            snack2.setDate(today);
+            snack2.setTime("16:30");
+            
+            Meal dinner = new Meal();
+            dinner.setUserId(currentUserId);
+            dinner.setName("Salmón al horno");
+            dinner.setMealType("Cena");
+            dinner.setCalories(480);
+            dinner.setProteins(35);
+            dinner.setCarbs(25);
+            dinner.setFats(28);
+            dinner.setDate(today);
+            dinner.setTime("19:30");
+            dinner.setNotes("Con vegetales asados");
             
             // Guardar en la base de datos y añadir a la lista
             long breakfastId = mealDAO.addMeal(breakfast);
+            long snack1Id = mealDAO.addMeal(snack1);
             long lunchId = mealDAO.addMeal(lunch);
+            long snack2Id = mealDAO.addMeal(snack2);
+            long dinnerId = mealDAO.addMeal(dinner);
             
             if (breakfastId > 0) {
                 breakfast.setId(breakfastId);
                 mealList.add(breakfast);
             }
             
+            if (snack1Id > 0) {
+                snack1.setId(snack1Id);
+                mealList.add(snack1);
+            }
+            
             if (lunchId > 0) {
                 lunch.setId(lunchId);
                 mealList.add(lunch);
+            }
+            
+            if (snack2Id > 0) {
+                snack2.setId(snack2Id);
+                mealList.add(snack2);
+            }
+            
+            if (dinnerId > 0) {
+                dinner.setId(dinnerId);
+                mealList.add(dinner);
             }
         } catch (Exception e) {
             Log.e("DashboardActivity", "Error al crear comidas de ejemplo: " + e.getMessage(), e);
@@ -341,5 +405,50 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
         super.onResume();
         // Recargar datos cuando se vuelve a la actividad
         loadDashboardData();
+    }
+
+    private void toggleMealsView() {
+        showingAllMeals = !showingAllMeals;
+        loadMeals();
+        viewAllMealsButton.setText(showingAllMeals ? R.string.show_today : R.string.view_all);
+    }
+    
+    private void loadMeals() {
+        try {
+            // Limpiar lista anterior
+            mealList.clear();
+            
+            // Obtener comidas según el estado
+            List<Meal> meals;
+            if (showingAllMeals) {
+                meals = mealDAO.getAllMealsByUser(currentUserId);
+            } else {
+                meals = mealDAO.getTodaysMeals(currentUserId);
+            }
+            
+            if (meals.isEmpty() && !showingAllMeals) {
+                // Solo crear datos de ejemplo si estamos mostrando las comidas de hoy
+                createSampleMeals();
+            } else {
+                mealList.addAll(meals);
+            }
+            
+            // Actualizar UI
+            if (mealList.isEmpty()) {
+                noMealsText.setVisibility(View.VISIBLE);
+                mealsRecyclerView.setVisibility(View.GONE);
+                noMealsText.setText(showingAllMeals ? 
+                    R.string.no_meals_recorded_all : R.string.no_meals_recorded);
+            } else {
+                noMealsText.setVisibility(View.GONE);
+                mealsRecyclerView.setVisibility(View.VISIBLE);
+                mealAdapter.notifyDataSetChanged();
+            }
+        } catch (Exception e) {
+            Log.e("DashboardActivity", "Error al cargar comidas: " + e.getMessage(), e);
+            noMealsText.setText("Error al cargar comidas");
+            noMealsText.setVisibility(View.VISIBLE);
+            mealsRecyclerView.setVisibility(View.GONE);
+        }
     }
 }
