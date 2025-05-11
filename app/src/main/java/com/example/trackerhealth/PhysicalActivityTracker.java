@@ -69,7 +69,6 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private Spinner activityTypeSpinner;
     private EditText durationEditText;
     private EditText distanceEditText;
-    private EditText notesEditText;
     private CheckBox useGpsCheckbox;
     private LinearLayout gpsContainer;
     private Button startTrackingButton;
@@ -260,9 +259,8 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         try {
             // Inicializar vistas principales
             activityTypeSpinner = findViewById(R.id.activity_type_spinner);
-            durationEditText = findViewById(R.id.duration_edit_text);
-            distanceEditText = findViewById(R.id.distance_edit_text);
-            notesEditText = findViewById(R.id.notes_edit_text);
+            durationEditText = findViewById(R.id.duration_input);
+            distanceEditText = findViewById(R.id.distance_input);
             useGpsCheckbox = findViewById(R.id.use_gps_checkbox);
             saveActivityButton = findViewById(R.id.save_activity_button);
             
@@ -272,7 +270,22 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
             
             // Configurar RecyclerView
             activityList = new ArrayList<>();
-            activityAdapter = new ActivityAdapter(this, activityList);
+            activityAdapter = new ActivityAdapter(this, activityList, new ActivityAdapter.OnActivityActionListener() {
+                @Override
+                public void onActivityClick(PhysicalActivity activity) {
+                    // Implementar acción al hacer clic
+                }
+
+                @Override
+                public void onEditActivity(PhysicalActivity activity) {
+                    startEditingActivity(activity);
+                }
+
+                @Override
+                public void onDeleteActivity(PhysicalActivity activity) {
+                    showDeleteConfirmationDialog(activity);
+                }
+            });
             recentActivitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
             recentActivitiesRecyclerView.setAdapter(activityAdapter);
             
@@ -908,7 +921,7 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                 if (isTrackingLocation) {
                     stopLocationTracking();
                 }
-                clearFields();
+                clearInputFields();
                 resetPhotoPreview();
                 
                 // 14. Recargar lista de actividades
@@ -970,44 +983,11 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     /**
      * Limpia todos los campos del formulario y resetea el estado
      */
-    private void clearFields() {
-        // Limpiar campos de texto
+    private void clearInputFields() {
         durationEditText.setText("");
         distanceEditText.setText("");
-        
-        // Resetear spinner al primer elemento
         activityTypeSpinner.setSelection(0);
-        
-        // Resetear checkbox y contenedor GPS
         useGpsCheckbox.setChecked(false);
-        gpsContainer.setVisibility(View.GONE);
-        
-        // Resetear variables de tracking
-        totalDistance = 0;
-        locationHistory.clear();
-        currentLatitude = 0;
-        currentLongitude = 0;
-        
-        // Resetear textos de GPS
-        if (totalDistanceTextView != null) {
-            totalDistanceTextView.setText("0.00 km");
-        }
-        if (currentSpeedTextView != null) {
-            currentSpeedTextView.setText("0.0 km/h");
-        }
-        if (locationStatusTextView != null) {
-            locationStatusTextView.setText("Waiting for GPS...");
-        }
-        
-        // Detener tracking si está activo
-        if (isTrackingLocation) {
-            stopLocationTracking();
-        }
-        
-        // Resetear estado de edición
-        currentEditingActivity = null;
-        isEditing = false;
-        saveActivityButton.setText(R.string.save_activity);
     }
     
     @Override
@@ -1257,7 +1237,7 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                 loadRecentActivities();
                 
                 // Limpiar el formulario y resetear el estado
-                clearFields();
+                clearInputFields();
                 resetEditingState();
             } else {
                 Toast.makeText(this, "Error updating activity", Toast.LENGTH_SHORT).show();
