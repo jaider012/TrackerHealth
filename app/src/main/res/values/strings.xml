@@ -52,6 +52,10 @@
     <string name="save_meal">Save Meal</string>
     <string name="todays_meals">Today\'s Meals</string>
     <string name="no_meals_recorded">No meals recorded today</string>
+    <string name="no_meals_recorded_all">No meals recorded yet</string>
+    <string name="show_today">Show Today</string>
+    <string name="view_all">View All</string>
+    <string name="all_meals">All Meals</string>
     
     <!-- Reports strings -->
     <string name="reports_statistics">Reports &amp; Statistics</string>
@@ -84,7 +88,6 @@
     <string name="calories_consumed">Calories Consumed</string>
     <string name="water_intake">Water Intake</string>
     <string name="sleep_hours">Sleep Hours</string>
-    <string name="view_all">View All</string>
     
     <!-- Error messages -->
     <string name="error_field_required">Este campo es obligatorio</string>
