@@ -22,6 +22,7 @@ import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -122,6 +123,9 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     private ActivityAdapter activityAdapter;
     private List<PhysicalActivity> activityList;
 
+    private PhysicalActivity currentEditingActivity = null;
+    private boolean isEditing = false;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -205,7 +209,11 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
 
         // Configurar botón de guardar
         saveActivityButton.setOnClickListener(v -> {
-            saveActivityToDatabase();
+            if (isEditing) {
+                updateActivity();
+            } else {
+                saveActivityToDatabase();
+            }
         });
 
         // Inicializar datos
@@ -843,19 +851,6 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         return false;
     }
 
-    /**
-     * Configura el RecyclerView para mostrar las actividades recientes
-     */
-    private void setupRecyclerView() {
-        if (recentActivitiesRecyclerView != null) {
-            recentActivitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-            activityAdapter = new ActivityAdapter(this, activityList, activity -> {
-                // Abrir detalles de la actividad al hacer clic
-                WorkoutDetailActivity.start(this, activity.getId(), activity.getActivityType());
-            });
-            recentActivitiesRecyclerView.setAdapter(activityAdapter);
-        }
-    }
     
     /**
      * Carga las actividades recientes del usuario
@@ -897,5 +892,133 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                 recentActivitiesRecyclerView.setVisibility(View.GONE);
             }
         }
+    }
+
+    private void setupRecyclerView() {
+        recentActivitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        activityAdapter = new ActivityAdapter(this, activityList, new ActivityAdapter.OnActivityActionListener() {
+            @Override
+            public void onActivityClick(PhysicalActivity activity) {
+                // Mostrar detalles si se desea
+            }
+
+            @Override
+            public void onEditActivity(PhysicalActivity activity) {
+                startEditingActivity(activity);
+            }
+
+            @Override
+            public void onDeleteActivity(PhysicalActivity activity) {
+                showDeleteConfirmationDialog(activity);
+            }
+        });
+        recentActivitiesRecyclerView.setAdapter(activityAdapter);
+    }
+
+    private void startEditingActivity(PhysicalActivity activity) {
+        currentEditingActivity = activity;
+        isEditing = true;
+        
+        // Actualizar UI con los datos de la actividad
+        activityTypeSpinner.setSelection(getActivityTypePosition(activity.getActivityType()));
+        durationEditText.setText(String.valueOf(activity.getDuration()));
+        distanceEditText.setText(activity.getDistance() > 0 ? String.format(Locale.getDefault(), "%.2f", activity.getDistance()) : "");
+        
+        // Actualizar el botón de guardar
+        saveActivityButton.setText(R.string.update_activity);
+        
+        // Desactivar GPS tracking durante la edición
+        useGpsCheckbox.setChecked(false);
+        gpsContainer.setVisibility(View.GONE);
+        
+        // Scroll hacia arriba para mostrar el formulario
+        ScrollView scrollView = findViewById(R.id.scroll_view);
+        if (scrollView != null) {
+            scrollView.smoothScrollTo(0, 0);
+        }
+    }
+
+    private void updateActivity() {
+        if (currentEditingActivity == null) return;
+        
+        try {
+            // Validar campos
+            if (TextUtils.isEmpty(durationEditText.getText())) {
+                durationEditText.setError(getString(R.string.error_field_required));
+                durationEditText.requestFocus();
+                return;
+            }
+            
+            // Actualizar datos de la actividad
+            currentEditingActivity.setActivityType(activityTypeSpinner.getSelectedItem().toString());
+            currentEditingActivity.setDuration(Integer.parseInt(durationEditText.getText().toString()));
+            
+            if (!TextUtils.isEmpty(distanceEditText.getText())) {
+                currentEditingActivity.setDistance(Double.parseDouble(distanceEditText.getText().toString()));
+            }
+            
+            // Recalcular calorías
+            int calories = estimateCaloriesBurned(
+                currentEditingActivity.getActivityType(),
+                currentEditingActivity.getDuration(),
+                currentEditingActivity.getDistance()
+            );
+            currentEditingActivity.setCaloriesBurned(calories);
+            
+            // Actualizar en la base de datos
+            if (activityDAO.updateActivity(currentEditingActivity)) {
+                Toast.makeText(this, "Activity updated successfully", Toast.LENGTH_SHORT).show();
+                
+                // Recargar la lista
+                loadRecentActivities();
+                
+                // Limpiar el formulario y resetear el estado
+                clearFields();
+                resetEditingState();
+            } else {
+                Toast.makeText(this, "Error updating activity", Toast.LENGTH_SHORT).show();
+            }
+            
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "Please enter valid numbers", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showDeleteConfirmationDialog(PhysicalActivity activity) {
+        new AlertDialog.Builder(this)
+            .setTitle("Delete Activity")
+            .setMessage("Are you sure you want to delete this activity?")
+            .setPositiveButton("Delete", (dialog, which) -> {
+                if (activityDAO.deleteActivity(activity.getId())) {
+                    Toast.makeText(this, "Activity deleted", Toast.LENGTH_SHORT).show();
+                    loadRecentActivities();
+                } else {
+                    Toast.makeText(this, "Error deleting activity", Toast.LENGTH_SHORT).show();
+                }
+            })
+            .setNegativeButton("Cancel", null)
+            .show();
+    }
+
+    private int getActivityTypePosition(String activityType) {
+        ArrayAdapter<String> adapter = (ArrayAdapter<String>) activityTypeSpinner.getAdapter();
+        for (int i = 0; i < adapter.getCount(); i++) {
+            if (adapter.getItem(i).equals(activityType)) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    private void resetEditingState() {
+        currentEditingActivity = null;
+        isEditing = false;
+        saveActivityButton.setText(R.string.save_activity);
+    }
+
+    @Override
+    public void clearFields() {
+        super.clearFields();
+        resetEditingState();
     }
 }

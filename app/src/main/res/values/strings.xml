@@ -131,4 +131,12 @@
     <string name="activity_icon">Icono de actividad</string>
     <string name="meal_icon">Icono de comida</string>
     <string name="view_more">Ver más</string>
+    <string name="update_activity">Update Activity</string>
+    <string name="edit_activity">Edit Activity</string>
+    <string name="delete_activity">Delete Activity</string>
+    <string name="confirm_delete">Are you sure you want to delete this activity?</string>
+    <string name="activity_updated">Activity updated successfully</string>
+    <string name="activity_deleted">Activity deleted</string>
+    <string name="error_updating">Error updating activity</string>
+    <string name="error_deleting">Error deleting activity</string>
 </resources>

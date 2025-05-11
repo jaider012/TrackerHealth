@@ -2,8 +2,10 @@ package com.example.trackerhealth.adapters;
 
 import android.content.Context;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -18,9 +20,9 @@ public class ActivityAdapter extends RecyclerView.Adapter<ActivityAdapter.Activi
     
     private final List<PhysicalActivity> activityList;
     private final Context context;
-    private final OnActivityClickListener listener;
+    private final OnActivityActionListener listener;
 
-    public ActivityAdapter(Context context, List<PhysicalActivity> activityList, OnActivityClickListener listener) {
+    public ActivityAdapter(Context context, List<PhysicalActivity> activityList, OnActivityActionListener listener) {
         this.context = context;
         this.activityList = activityList;
         this.listener = listener;
@@ -62,12 +64,41 @@ public class ActivityAdapter extends RecyclerView.Adapter<ActivityAdapter.Activi
         // Set date
         holder.tvDate.setText(activity.getDate());
         
-        // Set click listener
+        // Set long click listener for context menu
+        holder.itemView.setOnLongClickListener(v -> {
+            showPopupMenu(v, activity);
+            return true;
+        });
+        
+        // Set click listener for view details
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
                 listener.onActivityClick(activity);
             }
         });
+    }
+
+    private void showPopupMenu(View view, PhysicalActivity activity) {
+        PopupMenu popup = new PopupMenu(context, view);
+        popup.inflate(R.menu.menu_activity_item);
+        
+        popup.setOnMenuItemClickListener(item -> {
+            int itemId = item.getItemId();
+            if (itemId == R.id.menu_edit) {
+                if (listener != null) {
+                    listener.onEditActivity(activity);
+                }
+                return true;
+            } else if (itemId == R.id.menu_delete) {
+                if (listener != null) {
+                    listener.onDeleteActivity(activity);
+                }
+                return true;
+            }
+            return false;
+        });
+        
+        popup.show();
     }
 
     @Override
@@ -92,7 +123,9 @@ public class ActivityAdapter extends RecyclerView.Adapter<ActivityAdapter.Activi
         }
     }
 
-    public interface OnActivityClickListener {
+    public interface OnActivityActionListener {
         void onActivityClick(PhysicalActivity activity);
+        void onEditActivity(PhysicalActivity activity);
+        void onDeleteActivity(PhysicalActivity activity);
     }
 } 
