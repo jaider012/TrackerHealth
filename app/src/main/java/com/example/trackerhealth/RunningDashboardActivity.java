@@ -138,11 +138,7 @@ public class RunningDashboardActivity extends AppCompatActivity implements OnMap
             openWorkoutDetail(2, "Running");
         });
     }
-    
-    private void openWorkoutDetail(long activityId, String activityType) {
-        WorkoutDetailActivity.start(this, activityId, activityType);
-    }
-    
+    ƒ
     /**
      * Setup location request parameters
      */

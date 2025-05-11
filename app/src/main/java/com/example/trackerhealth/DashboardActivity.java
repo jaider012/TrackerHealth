@@ -112,10 +112,6 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
     private void setupRecyclerViews() {
         // Configurar RecyclerView de actividades
         activitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        activityAdapter = new ActivityAdapter(this, activityList, activity -> {
-            WorkoutDetailActivity.start(this, activity.getId(), activity.getActivityType());
-        });
-        activitiesRecyclerView.setAdapter(activityAdapter);
         
         // Configurar RecyclerView de comidas
         LinearLayoutManager mealsLayoutManager = new LinearLayoutManager(this);

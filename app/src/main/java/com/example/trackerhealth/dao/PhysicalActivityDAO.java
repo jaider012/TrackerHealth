@@ -141,45 +141,59 @@ public class PhysicalActivityDAO {
     /**
      * Busca una actividad física por su ID
      *
-     * @param activityId El ID de la actividad física a buscar
+     * @param id El ID de la actividad física a buscar
      * @return La actividad física si se encuentra, null en caso contrario
      */
-    public PhysicalActivity getActivityById(long activityId) {
+    public PhysicalActivity getActivityById(long id) {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
-        
-        String[] projection = {
-            COLUMN_ID,
-            COLUMN_USER_ID,
-            COLUMN_ACTIVITY_TYPE,
-            COLUMN_DURATION,
-            COLUMN_CALORIES_BURNED,
-            COLUMN_DISTANCE,
-            COLUMN_DATE,
-            COLUMN_NOTES,
-            COLUMN_PHOTO_PATH,
-            COLUMN_LATITUDE,
-            COLUMN_LONGITUDE
-        };
-
-        String selection = COLUMN_ID + " = ?";
-        String[] selectionArgs = {String.valueOf(activityId)};
-
-        Cursor cursor = db.query(
-            TABLE_ACTIVITIES,
-            projection,
-            selection,
-            selectionArgs,
-            null,
-            null,
-            null
-        );
-
         PhysicalActivity activity = null;
-        if (cursor.moveToFirst()) {
-            activity = cursorToActivity(cursor);
+
+        try {
+            String[] projection = {
+                "id",
+                "user_id",
+                "activity_type",
+                "duration",
+                "calories_burned",
+                "distance",
+                "notes",
+                "date",
+                "latitude",
+                "longitude"
+            };
+
+            String selection = "id = ?";
+            String[] selectionArgs = { String.valueOf(id) };
+
+            Cursor cursor = db.query(
+                "physical_activities",
+                projection,
+                selection,
+                selectionArgs,
+                null,
+                null,
+                null
+            );
+
+            if (cursor != null && cursor.moveToFirst()) {
+                activity = new PhysicalActivity(
+                    cursor.getLong(cursor.getColumnIndexOrThrow("user_id")),
+                    cursor.getString(cursor.getColumnIndexOrThrow("activity_type")),
+                    cursor.getInt(cursor.getColumnIndexOrThrow("duration")),
+                    cursor.getInt(cursor.getColumnIndexOrThrow("calories_burned")),
+                    cursor.getDouble(cursor.getColumnIndexOrThrow("distance")),
+                    cursor.getString(cursor.getColumnIndexOrThrow("notes"))
+                );
+                activity.setId(cursor.getLong(cursor.getColumnIndexOrThrow("id")));
+                activity.setDate(cursor.getString(cursor.getColumnIndexOrThrow("date")));
+                activity.setLatitude(cursor.getDouble(cursor.getColumnIndexOrThrow("latitude")));
+                activity.setLongitude(cursor.getDouble(cursor.getColumnIndexOrThrow("longitude")));
+                cursor.close();
+            }
+        } catch (Exception e) {
+            Log.e("PhysicalActivityDAO", "Error getting activity by id: " + e.getMessage());
         }
 
-        cursor.close();
         return activity;
     }
     
@@ -401,9 +415,7 @@ public class PhysicalActivityDAO {
     }
     
     public long addActivity(PhysicalActivity activity) {
-        // TODO: Implement actual database insertion
-        // For now, return a dummy ID
-        return System.currentTimeMillis();
+        return insertActivity(activity);
     }
     
     /**
