@@ -46,7 +46,12 @@
 
         <activity
             android:name=".PhysicalActivityTracker"
-            android:exported="false" />
+            android:exported="true" />
+
+        <activity
+            android:name=".EditPhysicalActivityActivity"
+            android:exported="false"
+            android:parentActivityName=".PhysicalActivityTracker" />
 
         <activity
             android:name=".FoodTrackerActivity"

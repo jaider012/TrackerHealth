@@ -155,4 +155,16 @@
     <string name="enter_notes">Add notes about this meal</string>
     <string name="save_changes">Save Changes</string>
     <string name="delete_meal">Delete Meal</string>
+    
+    <!-- Edit Activity Screen -->
+    <string name="edit_activity">Edit Activity</string>
+    <string name="activity_type">Activity Type</string>
+    <string name="duration_minutes">Duration (minutes)</string>
+    <string name="distance_km">Distance (km)</string>
+    <string name="activity_photo">Activity Photo</string>
+    <string name="enter_duration">Enter duration in minutes</string>
+    <string name="enter_distance">Enter distance in kilometers</string>
+    <string name="change_photo">Change Photo</string>
+    <string name="save_changes">Save Changes</string>
+    <string name="delete_activity">Delete Activity</string>
 </resources>
