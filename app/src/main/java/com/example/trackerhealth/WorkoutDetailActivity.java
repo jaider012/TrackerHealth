@@ -174,9 +174,9 @@ public class WorkoutDetailActivity extends AppCompatActivity implements OnMapRea
             activity.setNotes(etNotes.getText().toString());
             
             // Save to database
-            int result = activityDAO.update(activity);
+            boolean result = activityDAO.updateActivity(activity);
             
-            if (result > 0) {
+            if (result) {
                 Toast.makeText(this, "Activity updated successfully", Toast.LENGTH_SHORT).show();
                 loadActivityData(); // Refresh displayed data
                 return true;
