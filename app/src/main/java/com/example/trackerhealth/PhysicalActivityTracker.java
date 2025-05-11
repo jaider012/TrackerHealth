@@ -1016,41 +1016,40 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
 
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        int itemId = item.getItemId();
-
         // Si ya estamos en la actividad actual, no hacer nada
-        if (itemId == R.id.navigation_activity) {
+        if (item.getItemId() == R.id.navigation_activity) {
             return true;
         }
 
-        // Preparar la intent para la nueva actividad
-        Intent intent = null;
-        
-        if (itemId == R.id.navigation_dashboard) {
-            intent = new Intent(this, DashboardActivity.class);
-        } else if (itemId == R.id.navigation_food) {
-            intent = new Intent(this, FoodTrackerActivity.class);
-        } else if (itemId == R.id.navigation_reports) {
-            intent = new Intent(this, ReportsActivity.class);
+        // Detener el tracking de GPS si está activo
+        if (isTrackingLocation) {
+            stopLocationTracking();
         }
         
-        // Si tenemos una intent válida, iniciar la actividad
-        if (intent != null) {
-            // Detener el tracking de GPS si está activo
-            if (isTrackingLocation) {
-                stopLocationTracking();
-            }
-            
-            // Limpiar recursos
-            if (gpsTimeoutHandler != null) {
-                gpsTimeoutHandler.removeCallbacksAndMessages(null);
-            }
-            
-            // Añadir flags para evitar comportamientos inesperados
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        // Limpiar recursos
+        if (gpsTimeoutHandler != null) {
+            gpsTimeoutHandler.removeCallbacksAndMessages(null);
+        }
+
+        // Preparar la intent para la nueva actividad
+        Class<?> targetActivity = null;
+        
+        switch (item.getItemId()) {
+            case R.id.navigation_dashboard:
+                targetActivity = DashboardActivity.class;
+                break;
+            case R.id.navigation_food:
+                targetActivity = FoodTrackerActivity.class;
+                break;
+            case R.id.navigation_reports:
+                targetActivity = ReportsActivity.class;
+                break;
+        }
+        
+        if (targetActivity != null) {
+            Intent intent = new Intent(this, targetActivity);
+            intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
             startActivity(intent);
-            
-            // No llamar a finish() para mantener la actividad en el back stack
             return true;
         }
         
