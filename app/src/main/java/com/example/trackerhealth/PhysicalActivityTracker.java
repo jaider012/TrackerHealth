@@ -1188,18 +1188,34 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         durationEditText.setText(String.valueOf(activity.getDuration()));
         distanceEditText.setText(activity.getDistance() > 0 ? String.format(Locale.getDefault(), "%.2f", activity.getDistance()) : "");
         
-        // Actualizar el botón de guardar
-        saveActivityButton.setText(R.string.update_activity);
+        // Si hay foto, mostrarla
+        if (activity.getPhotoPath() != null && !activity.getPhotoPath().isEmpty()) {
+            try {
+                Uri photoUri = Uri.parse(activity.getPhotoPath());
+                Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoUri);
+                activityPhotoPreview.setImageBitmap(bitmap);
+            } catch (Exception e) {
+                Log.e("PhysicalActivityTracker", "Error loading activity photo: " + e.getMessage());
+                activityPhotoPreview.setImageResource(android.R.drawable.ic_menu_camera);
+            }
+        } else {
+            activityPhotoPreview.setImageResource(android.R.drawable.ic_menu_camera);
+        }
         
         // Desactivar GPS tracking durante la edición
         useGpsCheckbox.setChecked(false);
         gpsContainer.setVisibility(View.GONE);
+        
+        // Actualizar el botón de guardar
+        saveActivityButton.setText(R.string.update_activity);
         
         // Scroll hacia arriba para mostrar el formulario
         ScrollView scrollView = findViewById(R.id.activity_scroll_view);
         if (scrollView != null) {
             scrollView.smoothScrollTo(0, 0);
         }
+        
+        Toast.makeText(this, "Editing activity", Toast.LENGTH_SHORT).show();
     }
 
     private void updateActivity() {
@@ -1208,17 +1224,22 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         try {
             // Validar campos
             if (TextUtils.isEmpty(durationEditText.getText())) {
-                durationEditText.setError(getString(R.string.error_field_required));
+                durationEditText.setError("Duration is required");
                 durationEditText.requestFocus();
                 return;
             }
             
             // Actualizar datos de la actividad
             currentEditingActivity.setActivityType(activityTypeSpinner.getSelectedItem().toString());
-            currentEditingActivity.setDuration(Integer.parseInt(durationEditText.getText().toString()));
+            currentEditingActivity.setDuration(Integer.parseInt(durationEditText.getText().toString().trim()));
             
             if (!TextUtils.isEmpty(distanceEditText.getText())) {
-                currentEditingActivity.setDistance(Double.parseDouble(distanceEditText.getText().toString()));
+                currentEditingActivity.setDistance(Double.parseDouble(distanceEditText.getText().toString().trim()));
+            }
+            
+            // Actualizar foto si se cambió
+            if (photoUri != null) {
+                currentEditingActivity.setPhotoPath(photoUri.toString());
             }
             
             // Recalcular calorías
@@ -1239,12 +1260,16 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                 // Limpiar el formulario y resetear el estado
                 clearInputFields();
                 resetEditingState();
+                resetPhotoPreview();
             } else {
                 Toast.makeText(this, "Error updating activity", Toast.LENGTH_SHORT).show();
             }
             
         } catch (NumberFormatException e) {
             Toast.makeText(this, "Please enter valid numbers", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) {
+            Toast.makeText(this, "Error updating activity: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            Log.e("PhysicalActivityTracker", "Error updating activity: " + e.getMessage(), e);
         }
     }
 
