@@ -15,12 +15,24 @@ import java.util.List;
 public class PhysicalActivityDAO {
     
     private static final String TAG = PhysicalActivityDAO.class.getSimpleName();
-    private DatabaseHelper dbHelper;
-    private Context context;
-    
+    private final DatabaseHelper dbHelper;
+
+    // Table and column names
+    private static final String TABLE_ACTIVITIES = "physical_activities";
+    private static final String COLUMN_ID = "id";
+    private static final String COLUMN_USER_ID = "user_id";
+    private static final String COLUMN_ACTIVITY_TYPE = "activity_type";
+    private static final String COLUMN_DURATION = "duration";
+    private static final String COLUMN_CALORIES_BURNED = "calories_burned";
+    private static final String COLUMN_DISTANCE = "distance";
+    private static final String COLUMN_DATE = "date";
+    private static final String COLUMN_NOTES = "notes";
+    private static final String COLUMN_PHOTO_PATH = "photo_path";
+    private static final String COLUMN_LATITUDE = "latitude";
+    private static final String COLUMN_LONGITUDE = "longitude";
+
     public PhysicalActivityDAO(Context context) {
-        this.context = context;
-        dbHelper = DatabaseHelper.getInstance(context);
+        this.dbHelper = DatabaseHelper.getInstance(context);
     }
     
     /**
@@ -36,17 +48,19 @@ public class PhysicalActivityDAO {
         db.beginTransaction();
         try {
             ContentValues values = new ContentValues();
-            values.put(DatabaseHelper.KEY_ACTIVITY_USER_ID_FK, activity.getUserId());
-            values.put(DatabaseHelper.KEY_ACTIVITY_TYPE, activity.getActivityType());
-            values.put(DatabaseHelper.KEY_ACTIVITY_DURATION, activity.getDuration());
-            values.put(DatabaseHelper.KEY_ACTIVITY_CALORIES, activity.getCaloriesBurned());
-            values.put(DatabaseHelper.KEY_ACTIVITY_DISTANCE, activity.getDistance());
-            values.put(DatabaseHelper.KEY_ACTIVITY_NOTES, activity.getNotes());
-            values.put(DatabaseHelper.KEY_ACTIVITY_LATITUDE, activity.getLatitude());
-            values.put(DatabaseHelper.KEY_ACTIVITY_LONGITUDE, activity.getLongitude());
+            values.put(COLUMN_USER_ID, activity.getUserId());
+            values.put(COLUMN_ACTIVITY_TYPE, activity.getActivityType());
+            values.put(COLUMN_DURATION, activity.getDuration());
+            values.put(COLUMN_CALORIES_BURNED, activity.getCaloriesBurned());
+            values.put(COLUMN_DISTANCE, activity.getDistance());
+            values.put(COLUMN_DATE, activity.getDate());
+            values.put(COLUMN_NOTES, activity.getNotes());
+            values.put(COLUMN_PHOTO_PATH, activity.getPhotoPath());
+            values.put(COLUMN_LATITUDE, activity.getLatitude());
+            values.put(COLUMN_LONGITUDE, activity.getLongitude());
             
             // Insertar la fila
-            activityId = db.insertOrThrow(DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES, null, values);
+            activityId = db.insertOrThrow(TABLE_ACTIVITIES, null, values);
             db.setTransactionSuccessful();
         } catch (Exception e) {
             Log.e(TAG, "Error al insertar actividad física: " + e.getMessage());
@@ -70,19 +84,21 @@ public class PhysicalActivityDAO {
         db.beginTransaction();
         try {
             ContentValues values = new ContentValues();
-            values.put(DatabaseHelper.KEY_ACTIVITY_TYPE, activity.getActivityType());
-            values.put(DatabaseHelper.KEY_ACTIVITY_DURATION, activity.getDuration());
-            values.put(DatabaseHelper.KEY_ACTIVITY_CALORIES, activity.getCaloriesBurned());
-            values.put(DatabaseHelper.KEY_ACTIVITY_DISTANCE, activity.getDistance());
-            values.put(DatabaseHelper.KEY_ACTIVITY_NOTES, activity.getNotes());
-            values.put(DatabaseHelper.KEY_ACTIVITY_LATITUDE, activity.getLatitude());
-            values.put(DatabaseHelper.KEY_ACTIVITY_LONGITUDE, activity.getLongitude());
+            values.put(COLUMN_ACTIVITY_TYPE, activity.getActivityType());
+            values.put(COLUMN_DURATION, activity.getDuration());
+            values.put(COLUMN_CALORIES_BURNED, activity.getCaloriesBurned());
+            values.put(COLUMN_DISTANCE, activity.getDistance());
+            values.put(COLUMN_DATE, activity.getDate());
+            values.put(COLUMN_NOTES, activity.getNotes());
+            values.put(COLUMN_PHOTO_PATH, activity.getPhotoPath());
+            values.put(COLUMN_LATITUDE, activity.getLatitude());
+            values.put(COLUMN_LONGITUDE, activity.getLongitude());
             
             // Actualizar la fila
-            String selection = DatabaseHelper.KEY_ACTIVITY_ID + " = ?";
+            String selection = COLUMN_ID + " = ?";
             String[] selectionArgs = { String.valueOf(activity.getId()) };
             
-            rows = db.update(DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES, values, selection, selectionArgs);
+            rows = db.update(TABLE_ACTIVITIES, values, selection, selectionArgs);
             
             db.setTransactionSuccessful();
         } catch (Exception e) {
@@ -107,10 +123,10 @@ public class PhysicalActivityDAO {
         db.beginTransaction();
         try {
             // Eliminar actividad por ID
-            String selection = DatabaseHelper.KEY_ACTIVITY_ID + " = ?";
+            String selection = COLUMN_ID + " = ?";
             String[] selectionArgs = { String.valueOf(activityId) };
             
-            rows = db.delete(DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES, selection, selectionArgs);
+            rows = db.delete(TABLE_ACTIVITIES, selection, selectionArgs);
             
             db.setTransactionSuccessful();
         } catch (Exception e) {
@@ -129,13 +145,41 @@ public class PhysicalActivityDAO {
      * @return La actividad física si se encuentra, null en caso contrario
      */
     public PhysicalActivity getActivityById(long activityId) {
-        // TODO: Implement actual database query
-        // For now, return dummy data
-        PhysicalActivity activity = new PhysicalActivity();
-        activity.setId(activityId);
-        activity.setDistance(14.5f);
-        activity.setCaloriesBurned(110);
-        activity.setNotes("heartRate:95");
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        
+        String[] projection = {
+            COLUMN_ID,
+            COLUMN_USER_ID,
+            COLUMN_ACTIVITY_TYPE,
+            COLUMN_DURATION,
+            COLUMN_CALORIES_BURNED,
+            COLUMN_DISTANCE,
+            COLUMN_DATE,
+            COLUMN_NOTES,
+            COLUMN_PHOTO_PATH,
+            COLUMN_LATITUDE,
+            COLUMN_LONGITUDE
+        };
+
+        String selection = COLUMN_ID + " = ?";
+        String[] selectionArgs = {String.valueOf(activityId)};
+
+        Cursor cursor = db.query(
+            TABLE_ACTIVITIES,
+            projection,
+            selection,
+            selectionArgs,
+            null,
+            null,
+            null
+        );
+
+        PhysicalActivity activity = null;
+        if (cursor.moveToFirst()) {
+            activity = cursorToActivity(cursor);
+        }
+
+        cursor.close();
         return activity;
     }
     
@@ -148,16 +192,16 @@ public class PhysicalActivityDAO {
     public List<PhysicalActivity> getActivitiesByUserId(long userId) {
         List<PhysicalActivity> activityList = new ArrayList<>();
         
-        String query = "SELECT * FROM " + DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES + 
-                      " WHERE " + DatabaseHelper.KEY_ACTIVITY_USER_ID_FK + " = ?" +
-                      " ORDER BY " + DatabaseHelper.KEY_ACTIVITY_DATE + " DESC";
+        String query = "SELECT * FROM " + TABLE_ACTIVITIES + 
+                      " WHERE " + COLUMN_USER_ID + " = ?" +
+                      " ORDER BY " + COLUMN_DATE + " DESC";
                       
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(userId)});
         
         if (cursor.moveToFirst()) {
             do {
-                PhysicalActivity activity = getActivityFromCursor(cursor);
+                PhysicalActivity activity = cursorToActivity(cursor);
                 activityList.add(activity);
             } while (cursor.moveToNext());
         }
@@ -177,10 +221,10 @@ public class PhysicalActivityDAO {
      * @return Lista de actividades físicas en el rango de fechas
      */
     public List<PhysicalActivity> getActivitiesByDateRange(long userId, String startDate, String endDate) {
-        String SELECT_QUERY = "SELECT * FROM " + DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES +
-                " WHERE " + DatabaseHelper.KEY_ACTIVITY_USER_ID_FK + " = ?" +
-                " AND " + DatabaseHelper.KEY_ACTIVITY_DATE + " BETWEEN ? AND ?" +
-                " ORDER BY " + DatabaseHelper.KEY_ACTIVITY_DATE + " DESC";
+        String SELECT_QUERY = "SELECT * FROM " + TABLE_ACTIVITIES +
+                " WHERE " + COLUMN_USER_ID + " = ?" +
+                " AND " + COLUMN_DATE + " BETWEEN ? AND ?" +
+                " ORDER BY " + COLUMN_DATE + " DESC";
         
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         List<PhysicalActivity> activities = new ArrayList<>();
@@ -193,7 +237,7 @@ public class PhysicalActivityDAO {
             
             if (cursor != null && cursor.moveToFirst()) {
                 do {
-                    PhysicalActivity activity = getActivityFromCursor(cursor);
+                    PhysicalActivity activity = cursorToActivity(cursor);
                     activities.add(activity);
                 } while (cursor.moveToNext());
             }
@@ -216,10 +260,10 @@ public class PhysicalActivityDAO {
      * @return Total de calorías quemadas en el periodo
      */
     public int getTotalCaloriesBurned(long userId, int days) {
-        String SELECT_QUERY = "SELECT SUM(" + DatabaseHelper.KEY_ACTIVITY_CALORIES + ") as total" +
-                " FROM " + DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES +
-                " WHERE " + DatabaseHelper.KEY_ACTIVITY_USER_ID_FK + " = ?" +
-                " AND " + DatabaseHelper.KEY_ACTIVITY_DATE + " >= date('now', '-" + days + " days')";
+        String SELECT_QUERY = "SELECT SUM(" + COLUMN_CALORIES_BURNED + ") as total" +
+                " FROM " + TABLE_ACTIVITIES +
+                " WHERE " + COLUMN_USER_ID + " = ?" +
+                " AND " + COLUMN_DATE + " >= date('now', '-" + days + " days')";
         
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         int totalCalories = 0;
@@ -248,11 +292,11 @@ public class PhysicalActivityDAO {
      * @return Lista de actividades físicas con datos de ubicación
      */
     public List<PhysicalActivity> getActivitiesWithLocation(long userId) {
-        String SELECT_QUERY = "SELECT * FROM " + DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES +
-                " WHERE " + DatabaseHelper.KEY_ACTIVITY_USER_ID_FK + " = ?" +
-                " AND " + DatabaseHelper.KEY_ACTIVITY_LATITUDE + " IS NOT NULL" +
-                " AND " + DatabaseHelper.KEY_ACTIVITY_LONGITUDE + " IS NOT NULL" +
-                " ORDER BY " + DatabaseHelper.KEY_ACTIVITY_DATE + " DESC";
+        String SELECT_QUERY = "SELECT * FROM " + TABLE_ACTIVITIES +
+                " WHERE " + COLUMN_USER_ID + " = ?" +
+                " AND " + COLUMN_LATITUDE + " IS NOT NULL" +
+                " AND " + COLUMN_LONGITUDE + " IS NOT NULL" +
+                " ORDER BY " + COLUMN_DATE + " DESC";
         
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         List<PhysicalActivity> activities = new ArrayList<>();
@@ -262,7 +306,7 @@ public class PhysicalActivityDAO {
             cursor = db.rawQuery(SELECT_QUERY, new String[]{String.valueOf(userId)});
             if (cursor != null && cursor.moveToFirst()) {
                 do {
-                    PhysicalActivity activity = getActivityFromCursor(cursor);
+                    PhysicalActivity activity = cursorToActivity(cursor);
                     activities.add(activity);
                 } while (cursor.moveToNext());
             }
@@ -284,11 +328,11 @@ public class PhysicalActivityDAO {
      */
     public double[] getLocationStats(long userId) {
         String SELECT_QUERY = "SELECT COUNT(*) as count, SUM(" + 
-                DatabaseHelper.KEY_ACTIVITY_DISTANCE + ") as total_distance " +
-                " FROM " + DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES +
-                " WHERE " + DatabaseHelper.KEY_ACTIVITY_USER_ID_FK + " = ?" +
-                " AND " + DatabaseHelper.KEY_ACTIVITY_LATITUDE + " IS NOT NULL" +
-                " AND " + DatabaseHelper.KEY_ACTIVITY_LONGITUDE + " IS NOT NULL";
+                COLUMN_DISTANCE + ") as total_distance " +
+                " FROM " + TABLE_ACTIVITIES +
+                " WHERE " + COLUMN_USER_ID + " = ?" +
+                " AND " + COLUMN_LATITUDE + " IS NOT NULL" +
+                " AND " + COLUMN_LONGITUDE + " IS NOT NULL";
         
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         double[] stats = new double[2]; // [total_distance, count]
@@ -314,19 +358,19 @@ public class PhysicalActivityDAO {
     /**
      * Método auxiliar para obtener una actividad física a partir de un cursor
      */
-    private PhysicalActivity getActivityFromCursor(Cursor cursor) {
+    private PhysicalActivity cursorToActivity(Cursor cursor) {
         PhysicalActivity activity = new PhysicalActivity();
         
-        activity.setId(cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_ID)));
-        activity.setUserId(cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_USER_ID_FK)));
-        activity.setActivityType(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_TYPE)));
-        activity.setDuration(cursor.getInt(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_DURATION)));
-        activity.setCaloriesBurned(cursor.getInt(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_CALORIES)));
-        activity.setDate(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_DATE)));
+        activity.setId(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_ID)));
+        activity.setUserId(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_USER_ID)));
+        activity.setActivityType(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_ACTIVITY_TYPE)));
+        activity.setDuration(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_DURATION)));
+        activity.setCaloriesBurned(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_CALORIES_BURNED)));
+        activity.setDate(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DATE)));
         
         // Campos opcionales
-        int distanceIndex = cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_DISTANCE);
-        int notesIndex = cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_NOTES);
+        int distanceIndex = cursor.getColumnIndexOrThrow(COLUMN_DISTANCE);
+        int notesIndex = cursor.getColumnIndexOrThrow(COLUMN_NOTES);
         
         if (!cursor.isNull(distanceIndex)) {
             activity.setDistance(cursor.getDouble(distanceIndex));
@@ -338,8 +382,8 @@ public class PhysicalActivityDAO {
         
         // Campos de ubicación
         try {
-            int latIndex = cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_LATITUDE);
-            int lngIndex = cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_ACTIVITY_LONGITUDE);
+            int latIndex = cursor.getColumnIndexOrThrow(COLUMN_LATITUDE);
+            int lngIndex = cursor.getColumnIndexOrThrow(COLUMN_LONGITUDE);
             
             if (!cursor.isNull(latIndex)) {
                 activity.setLatitude(cursor.getDouble(latIndex));
@@ -371,9 +415,9 @@ public class PhysicalActivityDAO {
     public List<PhysicalActivity> getRecentActivities(long userId, int limit) {
         List<PhysicalActivity> activityList = new ArrayList<>();
         
-        String query = "SELECT * FROM " + DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES + 
-                      " WHERE " + DatabaseHelper.KEY_ACTIVITY_USER_ID_FK + " = ?" +
-                      " ORDER BY " + DatabaseHelper.KEY_ACTIVITY_DATE + " DESC" +
+        String query = "SELECT * FROM " + TABLE_ACTIVITIES + 
+                      " WHERE " + COLUMN_USER_ID + " = ?" +
+                      " ORDER BY " + COLUMN_DATE + " DESC" +
                       " LIMIT " + limit;
                       
         SQLiteDatabase db = dbHelper.getReadableDatabase();
@@ -381,7 +425,7 @@ public class PhysicalActivityDAO {
         
         if (cursor.moveToFirst()) {
             do {
-                PhysicalActivity activity = getActivityFromCursor(cursor);
+                PhysicalActivity activity = cursorToActivity(cursor);
                 activityList.add(activity);
             } while (cursor.moveToNext());
         }
@@ -401,17 +445,17 @@ public class PhysicalActivityDAO {
     public List<PhysicalActivity> getActivitiesByDate(long userId, String date) {
         List<PhysicalActivity> activityList = new ArrayList<>();
         
-        String query = "SELECT * FROM " + DatabaseHelper.TABLE_PHYSICAL_ACTIVITIES + 
-                      " WHERE " + DatabaseHelper.KEY_ACTIVITY_USER_ID_FK + " = ?" +
-                      " AND " + DatabaseHelper.KEY_ACTIVITY_DATE + " = ?" +
-                      " ORDER BY " + DatabaseHelper.KEY_ACTIVITY_ID + " DESC";
+        String query = "SELECT * FROM " + TABLE_ACTIVITIES + 
+                      " WHERE " + COLUMN_USER_ID + " = ?" +
+                      " AND " + COLUMN_DATE + " = ?" +
+                      " ORDER BY " + COLUMN_ID + " DESC";
                       
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(userId), date});
         
         if (cursor.moveToFirst()) {
             do {
-                PhysicalActivity activity = getActivityFromCursor(cursor);
+                PhysicalActivity activity = cursorToActivity(cursor);
                 activityList.add(activity);
             } while (cursor.moveToNext());
         }

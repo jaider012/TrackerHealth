@@ -334,23 +334,46 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:padding="12dp"
-                        android:gravity="center_vertical">
+                        android:orientation="vertical"
+                        android:padding="12dp">
 
-                        <ImageView
-                            android:layout_width="24dp"
-                            android:layout_height="24dp"
-                            android:src="@android:drawable/ic_menu_compass"
-                            android:layout_marginEnd="8dp" />
-
-                        <TextView
-                            android:id="@+id/tv_distance"
-                            android:layout_width="wrap_content"
+                        <LinearLayout
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="14.5km"
-                            android:textSize="16sp"
-                            android:textStyle="bold" />
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <ImageView
+                                android:layout_width="24dp"
+                                android:layout_height="24dp"
+                                android:src="@android:drawable/ic_menu_compass"
+                                android:layout_marginEnd="8dp" />
+
+                            <TextView
+                                android:id="@+id/tv_distance"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="14.5km"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <EditText
+                                android:id="@+id/et_distance"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:hint="Distance (km)"
+                                android:inputType="numberDecimal"
+                                android:visibility="gone" />
+                        </LinearLayout>
+
+                        <EditText
+                            android:id="@+id/et_duration"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Duration (min)"
+                            android:inputType="number"
+                            android:visibility="gone"
+                            android:layout_marginTop="8dp" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
@@ -383,6 +406,14 @@
                             android:text="110kcal"
                             android:textSize="16sp"
                             android:textStyle="bold" />
+
+                        <EditText
+                            android:id="@+id/et_calories"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:hint="Calories"
+                            android:inputType="number"
+                            android:visibility="gone" />
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
 
@@ -417,6 +448,19 @@
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
             </LinearLayout>
+
+            <!-- Notes EditText -->
+            <EditText
+                android:id="@+id/et_notes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:hint="Add notes"
+                android:minLines="2"
+                android:maxLines="4"
+                android:padding="12dp"
+                android:background="@drawable/rounded_edit_text_bg"
+                android:visibility="gone" />
 
             <!-- Map View -->
             <androidx.cardview.widget.CardView
@@ -588,4 +632,26 @@
             android:background="@drawable/circle_button_bg"
             android:src="@android:drawable/ic_dialog_dialer" />
     </LinearLayout>
+
+    <!-- Edit/Save FAB -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_edit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|bottom"
+        android:layout_margin="16dp"
+        android:src="@android:drawable/ic_menu_edit"
+        app:fabSize="normal"
+        app:backgroundTint="#7052E7" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_save"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="end|bottom"
+        android:layout_margin="16dp"
+        android:src="@android:drawable/ic_menu_save"
+        android:visibility="gone"
+        app:fabSize="normal"
+        app:backgroundTint="#4CAF50" />
 </androidx.constraintlayout.widget.ConstraintLayout> 

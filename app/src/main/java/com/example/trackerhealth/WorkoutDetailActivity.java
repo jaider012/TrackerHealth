@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,6 +24,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -44,11 +46,19 @@ public class WorkoutDetailActivity extends AppCompatActivity implements OnMapRea
     private Button btnSwimming;
     private Button btnCycling;
     private ImageButton backButton;
+    private FloatingActionButton fabEdit;
+    private FloatingActionButton fabSave;
+    private EditText etNotes;
+    private EditText etDuration;
+    private EditText etDistance;
+    private EditText etCalories;
     
     private GoogleMap mMap;
     private long activityId;
     private String activityType;
     private PhysicalActivity activity;
+    private PhysicalActivityDAO activityDAO;
+    private boolean isEditMode = false;
     
     public static void start(AppCompatActivity context, long activityId, String activityType) {
         Intent intent = new Intent(context, WorkoutDetailActivity.class);
@@ -62,19 +72,14 @@ public class WorkoutDetailActivity extends AppCompatActivity implements OnMapRea
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_workout_detail);
         
+        activityDAO = new PhysicalActivityDAO(this);
+        
         // Get activity info from intent
         activityId = getIntent().getLongExtra(EXTRA_ACTIVITY_ID, -1);
         activityType = getIntent().getStringExtra(EXTRA_ACTIVITY_TYPE);
         
         // Initialize UI components
-        tvDistance = findViewById(R.id.tv_distance);
-        tvCalories = findViewById(R.id.tv_calories);
-        tvHeartRate = findViewById(R.id.tv_heart_rate);
-        tvProgressPercentage = findViewById(R.id.tv_progress_percentage);
-        btnRunning = findViewById(R.id.btn_running);
-        btnSwimming = findViewById(R.id.btn_swimming);
-        btnCycling = findViewById(R.id.btn_cycling);
-        backButton = findViewById(R.id.back_button);
+        initializeViews();
         
         // Set activity type buttons click listeners
         setupActivityTypeButtons();
@@ -96,6 +101,93 @@ public class WorkoutDetailActivity extends AppCompatActivity implements OnMapRea
         
         // Set workout progress
         setupWorkoutProgress();
+        
+        // Setup edit mode
+        setupEditMode();
+    }
+    
+    private void initializeViews() {
+        tvDistance = findViewById(R.id.tv_distance);
+        tvCalories = findViewById(R.id.tv_calories);
+        tvHeartRate = findViewById(R.id.tv_heart_rate);
+        tvProgressPercentage = findViewById(R.id.tv_progress_percentage);
+        btnRunning = findViewById(R.id.btn_running);
+        btnSwimming = findViewById(R.id.btn_swimming);
+        btnCycling = findViewById(R.id.btn_cycling);
+        backButton = findViewById(R.id.back_button);
+        fabEdit = findViewById(R.id.fab_edit);
+        fabSave = findViewById(R.id.fab_save);
+        etNotes = findViewById(R.id.et_notes);
+        etDuration = findViewById(R.id.et_duration);
+        etDistance = findViewById(R.id.et_distance);
+        etCalories = findViewById(R.id.et_calories);
+    }
+    
+    private void setupEditMode() {
+        fabEdit.setOnClickListener(v -> {
+            isEditMode = true;
+            updateEditMode();
+        });
+        
+        fabSave.setOnClickListener(v -> {
+            if (saveChanges()) {
+                isEditMode = false;
+                updateEditMode();
+            }
+        });
+        
+        updateEditMode();
+    }
+    
+    private void updateEditMode() {
+        int viewMode = isEditMode ? View.VISIBLE : View.GONE;
+        int editMode = isEditMode ? View.GONE : View.VISIBLE;
+        
+        // Toggle visibility of views
+        tvDistance.setVisibility(editMode);
+        tvCalories.setVisibility(editMode);
+        etDistance.setVisibility(viewMode);
+        etCalories.setVisibility(viewMode);
+        etDuration.setVisibility(viewMode);
+        etNotes.setVisibility(viewMode);
+        
+        fabEdit.setVisibility(editMode);
+        fabSave.setVisibility(viewMode);
+        
+        // Update EditText fields when entering edit mode
+        if (isEditMode && activity != null) {
+            etDistance.setText(String.valueOf(activity.getDistance()));
+            etCalories.setText(String.valueOf(activity.getCaloriesBurned()));
+            etDuration.setText(String.valueOf(activity.getDuration()));
+            etNotes.setText(activity.getNotes());
+        }
+    }
+    
+    private boolean saveChanges() {
+        if (activity == null) return false;
+        
+        try {
+            // Update activity object with new values
+            activity.setDistance(Double.parseDouble(etDistance.getText().toString()));
+            activity.setCaloriesBurned(Integer.parseInt(etCalories.getText().toString()));
+            activity.setDuration(Integer.parseInt(etDuration.getText().toString()));
+            activity.setNotes(etNotes.getText().toString());
+            
+            // Save to database
+            int result = activityDAO.update(activity);
+            
+            if (result > 0) {
+                Toast.makeText(this, "Activity updated successfully", Toast.LENGTH_SHORT).show();
+                loadActivityData(); // Refresh displayed data
+                return true;
+            } else {
+                Toast.makeText(this, "Failed to update activity", Toast.LENGTH_SHORT).show();
+                return false;
+            }
+        } catch (NumberFormatException e) {
+            Toast.makeText(this, "Please enter valid numbers", Toast.LENGTH_SHORT).show();
+            return false;
+        }
     }
     
     private void setupActivityTypeButtons() {
@@ -133,12 +225,16 @@ public class WorkoutDetailActivity extends AppCompatActivity implements OnMapRea
                 btnCycling.setTextColor(getResources().getColor(android.R.color.white));
                 break;
         }
+        
+        if (activity != null && isEditMode) {
+            activity.setActivityType(type);
+        }
     }
     
     private void loadActivityData() {
         if (activityId != -1) {
             // Load activity from database
-            activity = new PhysicalActivityDAO(this).getActivityById(activityId);
+            activity = activityDAO.getActivityById(activityId);
             
             if (activity != null) {
                 // Update metrics
@@ -153,6 +249,9 @@ public class WorkoutDetailActivity extends AppCompatActivity implements OnMapRea
                     // Default value if not available
                     tvHeartRate.setText("--bpm");
                 }
+                
+                // Update activity type selection
+                updateActivityTypeSelection(activity.getActivityType());
             }
         }
     }
