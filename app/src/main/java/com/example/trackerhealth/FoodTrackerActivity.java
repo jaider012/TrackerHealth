@@ -40,6 +40,11 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import java.util.List;
+
+import com.example.trackerhealth.dao.MealDao;
+import com.example.trackerhealth.database.DatabaseHelper;
+import com.example.trackerhealth.model.Meal;
 
 public class FoodTrackerActivity extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener {
 
@@ -61,10 +66,19 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
     private String currentPhotoPath;
     private Uri photoUri;
 
+    private MealDao mealDao;
+    private long currentUserId; // You'll need to get this from your login/session management
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_food_tracker);
+
+        // Initialize DAO
+        mealDao = new MealDao(DatabaseHelper.getInstance(this));
+        
+        // Get current user ID (implement this based on your authentication system)
+        currentUserId = getCurrentUserId();
 
         // Inicializar componentes
         bottomNavigationView = findViewById(R.id.bottom_navigation);
@@ -328,116 +342,74 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
      * Carga y muestra las comidas guardadas
      */
     private void loadSavedMeals() {
-        // Obtener LinearLayout donde se mostrarán las comidas
         LinearLayout mealsContainer = findViewById(R.id.meals_container);
         TextView noMealsText = findViewById(R.id.no_meals_text);
         
         if (mealsContainer == null) return;
-        
-        // Limpiar contenedor
         mealsContainer.removeAllViews();
-        
-        // Obtener listado de comidas guardadas
-        SharedPreferences prefs = getSharedPreferences("FoodTrackerPrefs", MODE_PRIVATE);
-        String mealIdsStr = prefs.getString("meal_ids", "");
-        
-        if (mealIdsStr.isEmpty()) {
-            // Mostrar mensaje de "no hay comidas"
+
+        // Get today's date in the format stored in the database
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        String today = dateFormat.format(new Date());
+
+        // Get meals for today from the database
+        List<Meal> todayMeals = mealDao.getMealsForDate(currentUserId, today);
+
+        if (todayMeals.isEmpty()) {
             if (noMealsText != null) {
                 noMealsText.setVisibility(View.VISIBLE);
             }
             return;
         }
-        
-        // Ocultar mensaje de "no hay comidas"
+
         if (noMealsText != null) {
             noMealsText.setVisibility(View.GONE);
         }
-        
-        // Convertir string de IDs a array
-        String[] mealIds = mealIdsStr.split(",");
-        
-        // Obtener fecha actual para filtrar por día
-        Calendar calendar = Calendar.getInstance();
-        calendar.set(Calendar.HOUR_OF_DAY, 0);
-        calendar.set(Calendar.MINUTE, 0);
-        calendar.set(Calendar.SECOND, 0);
-        calendar.set(Calendar.MILLISECOND, 0);
-        long startOfDay = calendar.getTimeInMillis();
-        
-        calendar.add(Calendar.DAY_OF_MONTH, 1);
-        long endOfDay = calendar.getTimeInMillis();
-        
-        // Variable para contar comidas del día
-        int todayMealsCount = 0;
-        
-        // Iterar sobre IDs en orden inverso (más reciente primero)
-        for (int i = mealIds.length - 1; i >= 0; i--) {
-            String mealId = mealIds[i];
+
+        // Display meals
+        for (Meal meal : todayMeals) {
+            View mealItemView = LayoutInflater.from(this).inflate(R.layout.item_meal, null);
             
-            // Obtener fecha de la comida
-            long mealDate = prefs.getLong(mealId + "_date", 0);
+            TextView mealNameText = mealItemView.findViewById(R.id.tv_meal_name);
+            TextView mealTypeText = mealItemView.findViewById(R.id.tv_meal_type);
+            TextView caloriesText = mealItemView.findViewById(R.id.tv_calories);
+            ImageView mealPhotoView = mealItemView.findViewById(R.id.iv_meal_icon);
             
-            // Filtrar solo las comidas de hoy
-            if (mealDate >= startOfDay && mealDate < endOfDay) {
-                // Obtener datos de la comida
-                String name = prefs.getString(mealId + "_name", "");
-                String type = prefs.getString(mealId + "_type", "");
-                int calories = prefs.getInt(mealId + "_calories", 0);
-                String photoPath = prefs.getString(mealId + "_photo", null);
-                
-                // Inflar layout para item de comida
-                View mealItemView = LayoutInflater.from(this).inflate(R.layout.item_meal, null);
-                
-                // Configurar vistas
-                TextView mealNameText = mealItemView.findViewById(R.id.tv_meal_name);
-                TextView mealTypeText = mealItemView.findViewById(R.id.tv_meal_type);
-                TextView caloriesText = mealItemView.findViewById(R.id.tv_calories);
-                ImageView mealPhotoView = mealItemView.findViewById(R.id.iv_meal_icon);
-                
-                if (mealNameText != null) mealNameText.setText(name);
-                if (mealTypeText != null) mealTypeText.setText(type);
-                if (caloriesText != null) {
-                    if (calories > 0) {
-                        caloriesText.setText(calories + " cal");
-                    } else {
-                        caloriesText.setText("--");
-                    }
+            if (mealNameText != null) mealNameText.setText(meal.getName());
+            if (mealTypeText != null) mealTypeText.setText(meal.getMealType());
+            if (caloriesText != null) {
+                int calories = meal.getCalories();
+                if (calories > 0) {
+                    caloriesText.setText(calories + " cal");
+                } else {
+                    caloriesText.setText("--");
                 }
-                
-                // Cargar foto si existe
-                if (mealPhotoView != null && photoPath != null && !photoPath.isEmpty()) {
-                    try {
-                        if (photoPath.startsWith("content:")) {
-                            // Es URI de galería
-                            Uri photoUri = Uri.parse(photoPath);
-                            Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoUri);
+            }
+            
+            // Load photo if exists
+            String photoPath = meal.getPhotoPath();
+            if (mealPhotoView != null && photoPath != null && !photoPath.isEmpty()) {
+                try {
+                    if (photoPath.startsWith("content:")) {
+                        Uri photoUri = Uri.parse(photoPath);
+                        Bitmap bitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), photoUri);
+                        mealPhotoView.setImageBitmap(bitmap);
+                    } else {
+                        File imgFile = new File(photoPath);
+                        if (imgFile.exists()) {
+                            Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
                             mealPhotoView.setImageBitmap(bitmap);
-                        } else {
-                            // Es ruta de archivo
-                            File imgFile = new File(photoPath);
-                            if (imgFile.exists()) {
-                                Bitmap bitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
-                                mealPhotoView.setImageBitmap(bitmap);
-                            }
                         }
-                        mealPhotoView.setVisibility(View.VISIBLE);
-                    } catch (Exception e) {
-                        mealPhotoView.setVisibility(View.GONE);
                     }
-                } else if (mealPhotoView != null) {
+                    mealPhotoView.setVisibility(View.VISIBLE);
+                } catch (Exception e) {
                     mealPhotoView.setVisibility(View.GONE);
                 }
-                
-                // Añadir a contenedor
-                mealsContainer.addView(mealItemView);
-                todayMealsCount++;
+            } else if (mealPhotoView != null) {
+                mealPhotoView.setVisibility(View.GONE);
             }
-        }
-        
-        // Si no hay comidas hoy, mostrar mensaje
-        if (todayMealsCount == 0 && noMealsText != null) {
-            noMealsText.setVisibility(View.VISIBLE);
+            
+            mealsContainer.addView(mealItemView);
         }
     }
 
@@ -449,58 +421,55 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
         String caloriesStr = caloriesInput.getText().toString().trim();
         String mealType = mealTypeSpinner.getSelectedItem().toString();
         
-        // Validar campos
         if (foodName.isEmpty()) {
             Toast.makeText(this, "Por favor, ingresa el nombre de la comida", Toast.LENGTH_SHORT).show();
             return;
         }
-        
-        // Guardar en SharedPreferences para una solución simple
-        SharedPreferences prefs = getSharedPreferences("FoodTrackerPrefs", MODE_PRIVATE);
-        SharedPreferences.Editor editor = prefs.edit();
-        
-        // Crear ID único para esta comida
-        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
-        String mealId = "meal_" + timeStamp;
-        
-        // Guardar datos de la comida
-        editor.putString(mealId + "_name", foodName);
-        editor.putString(mealId + "_type", mealType);
+
+        // Create new Meal object
+        Meal meal = new Meal();
+        meal.setUserId(currentUserId);
+        meal.setName(foodName);
+        meal.setMealType(mealType);
         
         if (!caloriesStr.isEmpty()) {
-            editor.putInt(mealId + "_calories", Integer.parseInt(caloriesStr));
+            meal.setCalories(Integer.parseInt(caloriesStr));
         }
-        
+
+        // Set current date and time
+        SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
+        Date now = new Date();
+        meal.setDate(dateFormat.format(now));
+        meal.setTime(timeFormat.format(now));
+
+        // Set photo path
         if (photoUri != null) {
-            editor.putString(mealId + "_photo", photoUri.toString());
+            meal.setPhotoPath(photoUri.toString());
         } else if (currentPhotoPath != null) {
-            editor.putString(mealId + "_photo", currentPhotoPath);
+            meal.setPhotoPath(currentPhotoPath);
         }
+
+        // Save to database
+        long mealId = mealDao.insert(meal);
         
-        // Guardar fecha
-        editor.putLong(mealId + "_date", System.currentTimeMillis());
-        
-        // Añadir esta comida a la lista de IDs
-        String mealIds = prefs.getString("meal_ids", "");
-        if (mealIds.isEmpty()) {
-            mealIds = mealId;
-        } else {
-            mealIds = mealIds + "," + mealId;
-        }
-        editor.putString("meal_ids", mealIds);
-        
-        // Guardar todo
-        if (editor.commit()) {
+        if (mealId != -1) {
             Toast.makeText(this, "Comida guardada correctamente", Toast.LENGTH_SHORT).show();
-            // Limpiar formulario
+            // Clear form
             foodNameInput.setText("");
             caloriesInput.setText("");
             resetPhotoPreview();
-            // Actualizar la lista de comidas
+            // Reload meals list
             loadSavedMeals();
         } else {
             Toast.makeText(this, "Error al guardar la comida", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    // Helper method to get current user ID (implement based on your authentication system)
+    private long getCurrentUserId() {
+        // TODO: Implement this method based on your authentication system
+        return 1; // Temporary return value
     }
 
     /**
