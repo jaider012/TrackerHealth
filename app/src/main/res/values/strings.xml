@@ -144,4 +144,15 @@
     <string name="navigation_dashboard">Dashboard</string>
     <string name="navigation_food">Food</string>
     <string name="navigation_reports">Reports</string>
+    
+    <!-- Edit Meal Screen -->
+    <string name="edit_meal">Edit Meal</string>
+    <string name="nutrients">Nutritional Information</string>
+    <string name="enter_proteins">Enter proteins (g)</string>
+    <string name="enter_carbs">Enter carbohydrates (g)</string>
+    <string name="enter_fats">Enter fats (g)</string>
+    <string name="change_photo">Change Photo</string>
+    <string name="enter_notes">Add notes about this meal</string>
+    <string name="save_changes">Save Changes</string>
+    <string name="delete_meal">Delete Meal</string>
 </resources>

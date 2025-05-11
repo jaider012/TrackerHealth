@@ -50,7 +50,12 @@
 
         <activity
             android:name=".FoodTrackerActivity"
-            android:exported="false" />
+            android:exported="true" />
+
+        <activity
+            android:name=".EditMealActivity"
+            android:exported="false"
+            android:parentActivityName=".FoodTrackerActivity" />
 
         <activity
             android:name=".ReportsActivity"

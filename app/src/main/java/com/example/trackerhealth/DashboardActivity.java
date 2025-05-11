@@ -29,6 +29,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
+import androidx.annotation.Nullable;
+
 public class DashboardActivity extends AppCompatActivity implements BottomNavigationView.OnNavigationItemSelectedListener {
 
     private BottomNavigationView bottomNavigationView;
@@ -62,6 +64,8 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
     
     // ID de usuario actual (en un app real se tomaría del login)
     private long currentUserId = 1;
+
+    private static final int REQUEST_EDIT_MEAL = 2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -118,8 +122,10 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
         mealsLayoutManager.setOrientation(LinearLayoutManager.VERTICAL);
         mealsRecyclerView.setLayoutManager(mealsLayoutManager);
         mealAdapter = new MealAdapter(this, mealList, meal -> {
-            // Abrir detalles de la comida al hacer clic
-            Toast.makeText(this, "Detalles de: " + meal.getName(), Toast.LENGTH_SHORT).show();
+            // Launch EditMealActivity when a meal is clicked
+            Intent intent = new Intent(DashboardActivity.this, EditMealActivity.class);
+            intent.putExtra("meal_id", meal.getId());
+            startActivityForResult(intent, REQUEST_EDIT_MEAL);
         });
         mealsRecyclerView.setAdapter(mealAdapter);
         
@@ -300,6 +306,17 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
         super.onResume();
         // Recargar datos cuando se vuelve a la actividad
         loadDashboardData();
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_EDIT_MEAL && resultCode == RESULT_OK) {
+            // Reload meals list after editing
+            loadAllMeals();
+            // Update daily summary since meal data might have changed
+            updateDailySummary();
+        }
     }
 
     // Crear datos de ejemplo para la demo

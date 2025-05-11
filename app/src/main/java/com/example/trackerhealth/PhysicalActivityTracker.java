@@ -143,54 +143,59 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         checkAndCreateDefaultUser();
         
         try {
-        // Inicializar lista de actividades (antes de usarla)
-        activityList = new ArrayList<>();
+            // Inicializar BottomNavigationView primero
+            bottomNavigationView = findViewById(R.id.bottom_navigation);
+            bottomNavigationView.setOnNavigationItemSelectedListener(this);
+            bottomNavigationView.setSelectedItemId(R.id.navigation_activity);
 
-        // Verificar y reparar base de datos
-        if (!com.example.trackerhealth.util.DatabaseUtils.verifyAllTables(this)) {
-            Log.w("PhysicalActivityTracker", "Database verification failed, attempting repair");
-            
-            // Intentar recrear la tabla de actividades
-            if (com.example.trackerhealth.util.DatabaseUtils.recreatePhysicalActivitiesTable(this)) {
-                Log.d("PhysicalActivityTracker", "Physical activities table recreated successfully");
-            } else {
-                Log.e("PhysicalActivityTracker", "Failed to recreate physical activities table");
+            // Inicializar lista de actividades (antes de usarla)
+            activityList = new ArrayList<>();
+
+            // Verificar y reparar base de datos
+            if (!com.example.trackerhealth.util.DatabaseUtils.verifyAllTables(this)) {
+                Log.w("PhysicalActivityTracker", "Database verification failed, attempting repair");
+                
+                // Intentar recrear la tabla de actividades
+                if (com.example.trackerhealth.util.DatabaseUtils.recreatePhysicalActivitiesTable(this)) {
+                    Log.d("PhysicalActivityTracker", "Physical activities table recreated successfully");
+                } else {
+                    Log.e("PhysicalActivityTracker", "Failed to recreate physical activities table");
+                }
             }
-        }
-        
-        // Asegurar que existe el usuario
-        if (!com.example.trackerhealth.util.DatabaseUtils.ensureUserExists(this, 1)) {
-            Log.e("PhysicalActivityTracker", "Failed to ensure user exists");
-            Toast.makeText(this, "Error: Could not create default user", Toast.LENGTH_LONG).show();
-        }
-        
-        // Intentar crear una actividad de prueba para verificar si funciona
-        long testActivityId = com.example.trackerhealth.util.DatabaseUtils.createTestActivity(this);
-        if (testActivityId > 0) {
-            Log.d("PhysicalActivityTracker", "Test activity created successfully with ID: " + testActivityId);
-        } else {
-            Log.e("PhysicalActivityTracker", "Failed to create test activity");
-        }
-        
-        // Inicializar DAO y componentes regulares
-        activityDAO = new PhysicalActivityDAO(this);
-        
-        // Inicializar componentes UI
-        initializeViews();
+            
+            // Asegurar que existe el usuario
+            if (!com.example.trackerhealth.util.DatabaseUtils.ensureUserExists(this, 1)) {
+                Log.e("PhysicalActivityTracker", "Failed to ensure user exists");
+                Toast.makeText(this, "Error: Could not create default user", Toast.LENGTH_LONG).show();
+            }
+            
+            // Intentar crear una actividad de prueba para verificar si funciona
+            long testActivityId = com.example.trackerhealth.util.DatabaseUtils.createTestActivity(this);
+            if (testActivityId > 0) {
+                Log.d("PhysicalActivityTracker", "Test activity created successfully with ID: " + testActivityId);
+            } else {
+                Log.e("PhysicalActivityTracker", "Failed to create test activity");
+            }
+            
+            // Inicializar DAO y componentes regulares
+            activityDAO = new PhysicalActivityDAO(this);
+            
+            // Inicializar componentes UI
+            initializeViews();
 
-        // Inicializar el cliente de ubicación fusionada
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        createLocationRequest();
-        createLocationCallback();
-        
-        // Configurar listeners y recyclerView
-        setupListeners();
-        setupRecyclerView();
-        
-        // Cargar actividades recientes
-        loadRecentActivities();
-        
-        Log.d("PhysicalActivityTracker", "Initializing successful");
+            // Inicializar el cliente de ubicación fusionada
+            fusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
+            createLocationRequest();
+            createLocationCallback();
+            
+            // Configurar listeners y recyclerView
+            setupListeners();
+            setupRecyclerView();
+            
+            // Cargar actividades recientes
+            loadRecentActivities();
+            
+            Log.d("PhysicalActivityTracker", "Initializing successful");
         } catch (Exception e) {
             Log.e("PhysicalActivityTracker", "Error in onCreate: " + e.getMessage(), e);
             Toast.makeText(this, "Error initializing activity: " + e.getMessage(), Toast.LENGTH_LONG).show();
@@ -1020,16 +1025,25 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
 
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        Intent intent;
+        // Detener el tracking de GPS si está activo
+        if (isTrackingLocation) {
+            stopLocationTracking();
+        }
         
+        // Limpiar recursos del GPS
+        if (gpsTimeoutHandler != null) {
+            gpsTimeoutHandler.removeCallbacksAndMessages(null);
+        }
+
         int itemId = item.getItemId();
-        
+        Intent intent;
+
         if (itemId == R.id.navigation_dashboard) {
             intent = new Intent(this, DashboardActivity.class);
             startActivity(intent);
             return true;
         } else if (itemId == R.id.navigation_activity) {
-            return true;
+            return true; // Ya estamos en esta actividad
         } else if (itemId == R.id.navigation_food) {
             intent = new Intent(this, FoodTrackerActivity.class);
             startActivity(intent);

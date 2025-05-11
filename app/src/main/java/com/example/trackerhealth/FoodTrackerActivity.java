@@ -61,6 +61,7 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
     private static final int REQUEST_PICK_IMAGE = 2;
     private static final int REQUEST_CAMERA_PERMISSION = 101;
     private static final int REQUEST_STORAGE_PERMISSION = 102;
+    private static final int REQUEST_EDIT_MEAL = 3;
     
     // Variables para manejo de imágenes
     private String currentPhotoPath;
@@ -240,6 +241,9 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
                     e.printStackTrace();
                     Toast.makeText(this, "Error al cargar la imagen", Toast.LENGTH_SHORT).show();
                 }
+            } else if (requestCode == REQUEST_EDIT_MEAL && resultCode == RESULT_OK) {
+                // Reload meals list after edit
+                loadSavedMeals();
             }
         }
     }
@@ -408,6 +412,13 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
             } else if (mealPhotoView != null) {
                 mealPhotoView.setVisibility(View.GONE);
             }
+            
+            // Add click listener to edit meal
+            mealItemView.setOnClickListener(v -> {
+                Intent intent = new Intent(FoodTrackerActivity.this, EditMealActivity.class);
+                intent.putExtra("meal_id", meal.getId());
+                startActivityForResult(intent, REQUEST_EDIT_MEAL);
+            });
             
             mealsContainer.addView(mealItemView);
         }
