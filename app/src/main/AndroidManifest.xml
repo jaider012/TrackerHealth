@@ -62,14 +62,14 @@
             android:label="@string/title_activity" />
 
         <activity
-            android:name=".WorkoutDetailActivity"
-            android:exported="false"
-            android:label="@string/workout_detail" />
-
-        <activity
             android:name=".MapTrackingActivity"
             android:exported="false"
             android:label="Running Map"
+            android:theme="@style/AppTheme.NoActionBar" />
+
+        <activity
+            android:name=".WorkoutDetailActivity"
+            android:label="@string/workout_detail"
             android:theme="@style/AppTheme.NoActionBar" />
 
         <!-- FileProvider para acceso a las fotos -->

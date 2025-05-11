@@ -800,6 +800,9 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         
         // Volver al primer elemento del spinner
         activityTypeSpinner.setSelection(0);
+        
+        // Resetear estado de edición
+        resetEditingState();
     }
     
     @Override
@@ -932,7 +935,7 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         gpsContainer.setVisibility(View.GONE);
         
         // Scroll hacia arriba para mostrar el formulario
-        ScrollView scrollView = findViewById(R.id.scroll_view);
+        ScrollView scrollView = findViewById(R.id.activity_scroll_view);
         if (scrollView != null) {
             scrollView.smoothScrollTo(0, 0);
         }
@@ -1014,11 +1017,5 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         currentEditingActivity = null;
         isEditing = false;
         saveActivityButton.setText(R.string.save_activity);
-    }
-
-    @Override
-    public void clearFields() {
-        super.clearFields();
-        resetEditingState();
     }
 }

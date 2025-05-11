@@ -138,7 +138,6 @@ public class RunningDashboardActivity extends AppCompatActivity implements OnMap
             openWorkoutDetail(2, "Running");
         });
     }
-    ƒ
     /**
      * Setup location request parameters
      */
@@ -279,5 +278,17 @@ public class RunningDashboardActivity extends AppCompatActivity implements OnMap
     protected void onPause() {
         super.onPause();
         stopLocationUpdates();
+    }
+
+    /**
+     * Opens the workout detail screen
+     * @param workoutId ID of the workout to display
+     * @param workoutType Type of workout (e.g., "Running", "Cycling", etc.)
+     */
+    private void openWorkoutDetail(int workoutId, String workoutType) {
+        Intent intent = new Intent(this, WorkoutDetailActivity.class);
+        intent.putExtra("workout_id", workoutId);
+        intent.putExtra("workout_type", workoutType);
+        startActivity(intent);
     }
 } 
