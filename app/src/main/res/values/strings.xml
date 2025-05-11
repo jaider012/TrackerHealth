@@ -121,6 +121,7 @@
     
     <!-- Running dashboard strings -->
     <string name="welcome_back_user">Welcome back, %1$s 👋</string>
+    <string name="running_dashboard">Running</string>
     
     <!-- New strings -->
     <string name="activity_icon">Icono de actividad</string>

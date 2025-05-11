@@ -237,4 +237,33 @@ public class MealDAO {
         
         return meal;
     }
+
+    /**
+     * Get all meals for a user, ordered by date and time
+     * @param userId ID of the user
+     * @return List of all meals
+     */
+    public List<Meal> getAllMealsByUser(long userId) {
+        List<Meal> mealList = new ArrayList<>();
+        
+        String selectQuery = "SELECT * FROM " + TABLE_MEALS + 
+                           " WHERE " + COLUMN_USER_ID + " = ?" +
+                           " ORDER BY " + COLUMN_DATE + " DESC, " +
+                           COLUMN_TIME + " DESC";
+        
+        SQLiteDatabase db = dbHelper.getReadableDatabase();
+        Cursor cursor = db.rawQuery(selectQuery, new String[] { String.valueOf(userId) });
+        
+        if (cursor.moveToFirst()) {
+            do {
+                Meal meal = cursorToMeal(cursor);
+                mealList.add(meal);
+            } while (cursor.moveToNext());
+        }
+        
+        cursor.close();
+        db.close();
+        
+        return mealList;
+    }
 } 
