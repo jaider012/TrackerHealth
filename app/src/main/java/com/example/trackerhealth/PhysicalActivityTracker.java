@@ -995,7 +995,11 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
         super.onPause();
         // Detener actualizaciones de ubicación si la actividad está en pausa
         if (isTrackingLocation) {
-            fusedLocationClient.removeLocationUpdates(locationCallback);
+            stopLocationTracking();
+        }
+        // Limpiar recursos
+        if (gpsTimeoutHandler != null) {
+            gpsTimeoutHandler.removeCallbacksAndMessages(null);
         }
     }
     
@@ -1016,39 +1020,22 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
 
     @Override
     public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        // Si ya estamos en la actividad actual, no hacer nada
-        if (item.getItemId() == R.id.navigation_activity) {
+        Intent intent;
+        
+        int itemId = item.getItemId();
+        
+        if (itemId == R.id.navigation_dashboard) {
+            intent = new Intent(this, DashboardActivity.class);
+            startActivity(intent);
             return true;
-        }
-
-        // Detener el tracking de GPS si está activo
-        if (isTrackingLocation) {
-            stopLocationTracking();
-        }
-        
-        // Limpiar recursos
-        if (gpsTimeoutHandler != null) {
-            gpsTimeoutHandler.removeCallbacksAndMessages(null);
-        }
-
-        // Preparar la intent para la nueva actividad
-        Class<?> targetActivity = null;
-        
-        switch (item.getItemId()) {
-            case R.id.navigation_dashboard:
-                targetActivity = DashboardActivity.class;
-                break;
-            case R.id.navigation_food:
-                targetActivity = FoodTrackerActivity.class;
-                break;
-            case R.id.navigation_reports:
-                targetActivity = ReportsActivity.class;
-                break;
-        }
-        
-        if (targetActivity != null) {
-            Intent intent = new Intent(this, targetActivity);
-            intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+        } else if (itemId == R.id.navigation_activity) {
+            return true;
+        } else if (itemId == R.id.navigation_food) {
+            intent = new Intent(this, FoodTrackerActivity.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.navigation_reports) {
+            intent = new Intent(this, ReportsActivity.class);
             startActivity(intent);
             return true;
         }
