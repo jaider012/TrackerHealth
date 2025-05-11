@@ -1,7 +1,16 @@
 package com.example.trackerhealth.util;
 
+import android.content.Context;
 import android.location.Location;
 import android.util.Log;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
 
 /**
  * Clase de utilidades para operaciones relacionadas con la ubicación y el GPS
@@ -119,5 +128,54 @@ public class LocationUtils {
         
         // Velocidad = distancia / tiempo
         return distance / timeDiffSeconds;
+    }
+
+    /**
+     * Guarda los datos de la ruta GPS en un archivo
+     * 
+     * @param context Contexto de la aplicación
+     * @param activityId ID de la actividad
+     * @param locationHistory Lista de ubicaciones GPS
+     * @return Ruta del archivo guardado o null si hubo un error
+     */
+    public static String saveRouteData(Context context, long activityId, List<Location> locationHistory) {
+        if (context == null || locationHistory == null || locationHistory.isEmpty()) {
+            return null;
+        }
+
+        try {
+            // Crear directorio si no existe
+            File routesDir = new File(context.getFilesDir(), "routes");
+            if (!routesDir.exists()) {
+                routesDir.mkdirs();
+            }
+
+            // Crear nombre de archivo único
+            String timestamp = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(new Date());
+            String fileName = String.format("route_%d_%s.txt", activityId, timestamp);
+            File routeFile = new File(routesDir, fileName);
+
+            // Escribir datos de ubicación al archivo
+            try (FileWriter writer = new FileWriter(routeFile)) {
+                writer.write("timestamp,latitude,longitude,accuracy,speed,altitude\n");
+                
+                for (Location location : locationHistory) {
+                    writer.write(String.format(Locale.US,
+                            "%d,%.6f,%.6f,%.1f,%.1f,%.1f\n",
+                            location.getTime(),
+                            location.getLatitude(),
+                            location.getLongitude(),
+                            location.hasAccuracy() ? location.getAccuracy() : -1,
+                            location.hasSpeed() ? location.getSpeed() : -1,
+                            location.hasAltitude() ? location.getAltitude() : -1));
+                }
+            }
+
+            return routeFile.getAbsolutePath();
+
+        } catch (IOException e) {
+            Log.e("LocationUtils", "Error saving route data: " + e.getMessage());
+            return null;
+        }
     }
 } 

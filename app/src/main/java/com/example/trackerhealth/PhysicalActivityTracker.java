@@ -638,49 +638,40 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
     }
     
     /**
-     * Guarda la actividad física en la base de datos
+     * Guarda una nueva actividad física en la base de datos
      */
     private void saveActivityToDatabase() {
-        // Validar que los campos obligatorios estén completos
-        if (TextUtils.isEmpty(durationEditText.getText())) {
-            durationEditText.setError(getString(R.string.error_field_required));
-            durationEditText.requestFocus();
-            return;
-        }
-        
         try {
-            // Obtener el ID del usuario de SharedPreferences
-            SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-            long userId = prefs.getLong(KEY_USER_ID, -1);
-            
-            if (userId == -1) {
-                Toast.makeText(this, "Error: No hay un usuario logueado", Toast.LENGTH_SHORT).show();
+            // Validar campos obligatorios
+            if (TextUtils.isEmpty(durationEditText.getText())) {
+                durationEditText.setError(getString(R.string.error_field_required));
+                durationEditText.requestFocus();
                 return;
             }
-            
-            // Obtener los valores de los campos
+
+            // Obtener valores de los campos
             String activityType = activityTypeSpinner.getSelectedItem().toString();
-            int duration = Integer.parseInt(durationEditText.getText().toString());
-            
-            // Valores opcionales
+            int duration = Integer.parseInt(durationEditText.getText().toString().trim());
             double distance = 0;
-            int calories = 0;
             String notes = "";
-            
-            if (distanceEditText != null && !TextUtils.isEmpty(distanceEditText.getText())) {
-                distance = Double.parseDouble(distanceEditText.getText().toString());
+
+            // Obtener distancia si está disponible
+            if (!TextUtils.isEmpty(distanceEditText.getText())) {
+                distance = Double.parseDouble(distanceEditText.getText().toString().trim());
+            } else if (useGpsCheckbox.isChecked() && totalDistance > 0) {
+                distance = totalDistance;
             }
-            
+
+            // Calcular calorías quemadas
+            int calories = estimateCaloriesBurned(activityType, duration, distance);
+
             // Si usamos GPS, añadir metadatos a las notas
             if (useGpsCheckbox.isChecked() && currentLatitude != 0 && currentLongitude != 0) {
                 notes = String.format(Locale.getDefault(), 
                         "totalDistance:%.2f;trackingEnabled:true", 
                         totalDistance);
             }
-            
-            // Estimación simple de calorías quemadas
-            calories = estimateCaloriesBurned(activityType, duration, distance);
-            
+
             // Añadir path de imagen si existe
             if (photoUri != null) {
                 if (!TextUtils.isEmpty(notes)) {
@@ -688,60 +679,64 @@ public class PhysicalActivityTracker extends AppCompatActivity implements Bottom
                 }
                 notes += "imagePath:" + (currentPhotoPath != null ? currentPhotoPath : photoUri.toString());
             }
-            
-            // Crear el objeto de actividad
-            PhysicalActivity activity = new PhysicalActivity(userId, activityType, duration, calories, distance, notes);
-            
+
+            // Crear objeto de actividad
+            PhysicalActivity activity = new PhysicalActivity(currentUserId, activityType, duration, calories, distance, notes);
+
+            // Establecer fecha actual
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+            activity.setDate(sdf.format(new Date()));
+
             // Establecer coordenadas GPS si están disponibles
             if (useGpsCheckbox.isChecked() && currentLatitude != 0 && currentLongitude != 0) {
                 activity.setLatitude(currentLatitude);
                 activity.setLongitude(currentLongitude);
             }
-            
+
             // Guardar en la base de datos
             long activityId = activityDAO.insertActivity(activity);
-            
+
             if (activityId > 0) {
-                String message = "Actividad guardada";
-                
-                // Si tenemos datos de ruta GPS, guardarlos en un archivo separado
+                String message = "Activity saved successfully";
+
+                // Si tenemos datos de ruta GPS, guardarlos
                 if (useGpsCheckbox.isChecked() && !locationHistory.isEmpty()) {
-                    String routeFilePath = com.example.trackerhealth.util.LocationTrackingUtil.saveRouteData(
+                    String routeFilePath = LocationUtils.saveRouteData(
                             this, 
                             activityId, 
                             locationHistory
                     );
-                    
+
                     if (routeFilePath != null) {
-                        message += " con ruta GPS";
-                        Log.d("PhysicalActivityTracker", "Ruta guardada en: " + routeFilePath);
+                        message += " with GPS route";
                     }
                 }
-                
+
                 if (photoUri != null) {
-                    message += " con foto";
+                    message += " with photo";
                 }
-                
+
                 Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
-                
+
                 // Detener tracking si está activo
                 if (isTrackingLocation) {
                     stopLocationTracking();
                 }
-                
-                // Limpiar campos después de guardar
+
+                // Limpiar campos y resetear estado
                 clearFields();
                 resetPhotoPreview();
                 
-                // Limpiar historial de ubicaciones
-                locationHistory.clear();
+                // Recargar la lista de actividades
+                loadRecentActivities();
             } else {
-                Toast.makeText(this, "Error al guardar la actividad", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Error saving activity", Toast.LENGTH_SHORT).show();
             }
-            
+
         } catch (NumberFormatException e) {
-            Toast.makeText(this, "Por favor, ingresa valores numéricos válidos", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Please enter valid numbers", Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
+            Log.e("PhysicalActivityTracker", "Error saving activity: " + e.getMessage());
             Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
