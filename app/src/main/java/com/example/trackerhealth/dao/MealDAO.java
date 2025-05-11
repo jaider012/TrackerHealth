@@ -36,9 +36,9 @@ public class MealDAO {
     private static final String COLUMN_PHOTO_PATH = "photo_path";
     
     public MealDAO(Context context) {
-        dbHelper = DatabaseHelper.getInstance(context);
+        this.dbHelper = DatabaseHelper.getInstance(context);
         dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-        timeFormat = new SimpleDateFormat("HH:mm", Locale.getDefault());
+        timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
     }
     
     /**
@@ -46,39 +46,32 @@ public class MealDAO {
      * @param meal Meal to add
      * @return ID of the new meal, or -1 if insertion failed
      */
-    public long addMeal(Meal meal) {
+    public long insert(Meal meal) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        
         ContentValues values = new ContentValues();
-        values.put(COLUMN_USER_ID, meal.getUserId());
-        values.put(COLUMN_NAME, meal.getName());
-        values.put(COLUMN_MEAL_TYPE, meal.getMealType());
-        values.put(COLUMN_CALORIES, meal.getCalories());
-        values.put(COLUMN_PROTEINS, meal.getProteins());
-        values.put(COLUMN_CARBS, meal.getCarbs());
-        values.put(COLUMN_FATS, meal.getFats());
-        
-        // If date is not provided, use current date
-        if (meal.getDate() == null || meal.getDate().isEmpty()) {
-            values.put(COLUMN_DATE, dateFormat.format(new Date()));
-        } else {
-            values.put(COLUMN_DATE, meal.getDate());
-        }
-        
-        // If time is not provided, use current time
-        if (meal.getTime() == null || meal.getTime().isEmpty()) {
-            values.put(COLUMN_TIME, timeFormat.format(new Date()));
-        } else {
-            values.put(COLUMN_TIME, meal.getTime());
-        }
-        
-        values.put(COLUMN_NOTES, meal.getNotes());
-        values.put(COLUMN_PHOTO_PATH, meal.getPhotoPath());
-        
-        long id = db.insert(TABLE_MEALS, null, values);
-        db.close();
-        
-        return id;
+
+        values.put(DatabaseHelper.KEY_MEAL_USER_ID_FK, meal.getUserId());
+        values.put(DatabaseHelper.KEY_MEAL_NAME, meal.getName());
+        values.put(DatabaseHelper.KEY_MEAL_TYPE, meal.getMealType());
+        values.put(DatabaseHelper.KEY_MEAL_CALORIES, meal.getCalories());
+        values.put(DatabaseHelper.KEY_MEAL_PROTEINS, meal.getProteins());
+        values.put(DatabaseHelper.KEY_MEAL_CARBS, meal.getCarbs());
+        values.put(DatabaseHelper.KEY_MEAL_FATS, meal.getFats());
+        values.put(DatabaseHelper.KEY_MEAL_DATE, meal.getDate());
+        values.put(DatabaseHelper.KEY_MEAL_TIME, meal.getTime());
+        values.put(DatabaseHelper.KEY_MEAL_NOTES, meal.getNotes());
+        values.put(DatabaseHelper.KEY_MEAL_PHOTO_PATH, meal.getPhotoPath());
+
+        return db.insert(DatabaseHelper.TABLE_MEALS, null, values);
+    }
+    
+    /**
+     * Adds a new meal to the database (alias for insert)
+     * @param meal Meal to add
+     * @return ID of the new meal, or -1 if insertion failed
+     */
+    public long addMeal(Meal meal) {
+        return insert(meal);
     }
     
     /**
@@ -116,28 +109,60 @@ public class MealDAO {
      * @param date Date in format yyyy-MM-dd
      * @return List of meals
      */
-    public List<Meal> getMealsByDate(long userId, String date) {
-        List<Meal> mealList = new ArrayList<>();
-        
-        String selectQuery = "SELECT * FROM " + TABLE_MEALS + 
-                             " WHERE " + COLUMN_USER_ID + " = ?" +
-                             " AND " + COLUMN_DATE + " = ?" +
-                             " ORDER BY " + COLUMN_TIME + " ASC";
-        
+    public List<Meal> getMealsForDate(long userId, String date) {
+        List<Meal> meals = new ArrayList<>();
         SQLiteDatabase db = dbHelper.getReadableDatabase();
-        Cursor cursor = db.rawQuery(selectQuery, new String[] { String.valueOf(userId), date });
-        
-        if (cursor.moveToFirst()) {
-            do {
-                Meal meal = cursorToMeal(cursor);
-                mealList.add(meal);
-            } while (cursor.moveToNext());
+
+        String[] projection = {
+            DatabaseHelper.KEY_MEAL_ID,
+            DatabaseHelper.KEY_MEAL_USER_ID_FK,
+            DatabaseHelper.KEY_MEAL_NAME,
+            DatabaseHelper.KEY_MEAL_TYPE,
+            DatabaseHelper.KEY_MEAL_CALORIES,
+            DatabaseHelper.KEY_MEAL_PROTEINS,
+            DatabaseHelper.KEY_MEAL_CARBS,
+            DatabaseHelper.KEY_MEAL_FATS,
+            DatabaseHelper.KEY_MEAL_DATE,
+            DatabaseHelper.KEY_MEAL_TIME,
+            DatabaseHelper.KEY_MEAL_NOTES,
+            DatabaseHelper.KEY_MEAL_PHOTO_PATH
+        };
+
+        String selection = DatabaseHelper.KEY_MEAL_USER_ID_FK + " = ? AND " + 
+                         DatabaseHelper.KEY_MEAL_DATE + " = ?";
+        String[] selectionArgs = {String.valueOf(userId), date};
+        String sortOrder = DatabaseHelper.KEY_MEAL_TIME + " DESC";
+
+        Cursor cursor = db.query(
+            DatabaseHelper.TABLE_MEALS,
+            projection,
+            selection,
+            selectionArgs,
+            null,
+            null,
+            sortOrder
+        );
+
+        while (cursor.moveToNext()) {
+            Meal meal = new Meal();
+            meal.setId(cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_ID)));
+            meal.setUserId(cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_USER_ID_FK)));
+            meal.setName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_NAME)));
+            meal.setMealType(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_TYPE)));
+            meal.setCalories(cursor.getInt(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_CALORIES)));
+            meal.setProteins(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_PROTEINS)));
+            meal.setCarbs(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_CARBS)));
+            meal.setFats(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_FATS)));
+            meal.setDate(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_DATE)));
+            meal.setTime(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_TIME)));
+            meal.setNotes(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_NOTES)));
+            meal.setPhotoPath(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_PHOTO_PATH)));
+            
+            meals.add(meal);
         }
-        
+
         cursor.close();
-        db.close();
-        
-        return mealList;
+        return meals;
     }
     
     /**
@@ -147,7 +172,7 @@ public class MealDAO {
      */
     public List<Meal> getTodaysMeals(long userId) {
         String today = dateFormat.format(new Date());
-        return getMealsByDate(userId, today);
+        return getMealsForDate(userId, today);
     }
     
     /**
@@ -158,14 +183,51 @@ public class MealDAO {
     public Meal getMealById(long id) {
         SQLiteDatabase db = dbHelper.getReadableDatabase();
         
-        Cursor cursor = db.query(TABLE_MEALS, null, COLUMN_ID + " = ?",
-                new String[] { String.valueOf(id) }, null, null, null);
-        
+        String[] projection = {
+            DatabaseHelper.KEY_MEAL_ID,
+            DatabaseHelper.KEY_MEAL_USER_ID_FK,
+            DatabaseHelper.KEY_MEAL_NAME,
+            DatabaseHelper.KEY_MEAL_TYPE,
+            DatabaseHelper.KEY_MEAL_CALORIES,
+            DatabaseHelper.KEY_MEAL_PROTEINS,
+            DatabaseHelper.KEY_MEAL_CARBS,
+            DatabaseHelper.KEY_MEAL_FATS,
+            DatabaseHelper.KEY_MEAL_DATE,
+            DatabaseHelper.KEY_MEAL_TIME,
+            DatabaseHelper.KEY_MEAL_NOTES,
+            DatabaseHelper.KEY_MEAL_PHOTO_PATH
+        };
+
+        String selection = DatabaseHelper.KEY_MEAL_ID + " = ?";
+        String[] selectionArgs = {String.valueOf(id)};
+
+        Cursor cursor = db.query(
+            DatabaseHelper.TABLE_MEALS,
+            projection,
+            selection,
+            selectionArgs,
+            null,
+            null,
+            null
+        );
+
         Meal meal = null;
         if (cursor.moveToFirst()) {
-            meal = cursorToMeal(cursor);
+            meal = new Meal();
+            meal.setId(cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_ID)));
+            meal.setUserId(cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_USER_ID_FK)));
+            meal.setName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_NAME)));
+            meal.setMealType(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_TYPE)));
+            meal.setCalories(cursor.getInt(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_CALORIES)));
+            meal.setProteins(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_PROTEINS)));
+            meal.setCarbs(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_CARBS)));
+            meal.setFats(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_FATS)));
+            meal.setDate(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_DATE)));
+            meal.setTime(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_TIME)));
+            meal.setNotes(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_NOTES)));
+            meal.setPhotoPath(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_PHOTO_PATH)));
         }
-        
+
         cursor.close();
         db.close();
         
@@ -177,27 +239,25 @@ public class MealDAO {
      * @param meal Meal to update
      * @return Number of rows affected
      */
-    public int updateMeal(Meal meal) {
+    public int update(Meal meal) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        
         ContentValues values = new ContentValues();
-        values.put(COLUMN_NAME, meal.getName());
-        values.put(COLUMN_MEAL_TYPE, meal.getMealType());
-        values.put(COLUMN_CALORIES, meal.getCalories());
-        values.put(COLUMN_PROTEINS, meal.getProteins());
-        values.put(COLUMN_CARBS, meal.getCarbs());
-        values.put(COLUMN_FATS, meal.getFats());
-        values.put(COLUMN_DATE, meal.getDate());
-        values.put(COLUMN_TIME, meal.getTime());
-        values.put(COLUMN_NOTES, meal.getNotes());
-        values.put(COLUMN_PHOTO_PATH, meal.getPhotoPath());
-        
-        int rowsAffected = db.update(TABLE_MEALS, values, COLUMN_ID + " = ?",
-                new String[] { String.valueOf(meal.getId()) });
-        
-        db.close();
-        
-        return rowsAffected;
+
+        values.put(DatabaseHelper.KEY_MEAL_NAME, meal.getName());
+        values.put(DatabaseHelper.KEY_MEAL_TYPE, meal.getMealType());
+        values.put(DatabaseHelper.KEY_MEAL_CALORIES, meal.getCalories());
+        values.put(DatabaseHelper.KEY_MEAL_PROTEINS, meal.getProteins());
+        values.put(DatabaseHelper.KEY_MEAL_CARBS, meal.getCarbs());
+        values.put(DatabaseHelper.KEY_MEAL_FATS, meal.getFats());
+        values.put(DatabaseHelper.KEY_MEAL_DATE, meal.getDate());
+        values.put(DatabaseHelper.KEY_MEAL_TIME, meal.getTime());
+        values.put(DatabaseHelper.KEY_MEAL_NOTES, meal.getNotes());
+        values.put(DatabaseHelper.KEY_MEAL_PHOTO_PATH, meal.getPhotoPath());
+
+        String selection = DatabaseHelper.KEY_MEAL_ID + " = ?";
+        String[] selectionArgs = {String.valueOf(meal.getId())};
+
+        return db.update(DatabaseHelper.TABLE_MEALS, values, selection, selectionArgs);
     }
     
     /**
@@ -205,15 +265,12 @@ public class MealDAO {
      * @param id ID of the meal to delete
      * @return Number of rows affected
      */
-    public int deleteMeal(long id) {
+    public int delete(long id) {
         SQLiteDatabase db = dbHelper.getWritableDatabase();
-        
-        int rowsAffected = db.delete(TABLE_MEALS, COLUMN_ID + " = ?",
-                new String[] { String.valueOf(id) });
-        
-        db.close();
-        
-        return rowsAffected;
+        String selection = DatabaseHelper.KEY_MEAL_ID + " = ?";
+        String[] selectionArgs = {String.valueOf(id)};
+
+        return db.delete(DatabaseHelper.TABLE_MEALS, selection, selectionArgs);
     }
     
     /**
@@ -222,18 +279,18 @@ public class MealDAO {
     private Meal cursorToMeal(Cursor cursor) {
         Meal meal = new Meal();
         
-        meal.setId(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_ID)));
-        meal.setUserId(cursor.getLong(cursor.getColumnIndexOrThrow(COLUMN_USER_ID)));
-        meal.setName(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NAME)));
-        meal.setMealType(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_MEAL_TYPE)));
-        meal.setCalories(cursor.getInt(cursor.getColumnIndexOrThrow(COLUMN_CALORIES)));
-        meal.setProteins(cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_PROTEINS)));
-        meal.setCarbs(cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_CARBS)));
-        meal.setFats(cursor.getDouble(cursor.getColumnIndexOrThrow(COLUMN_FATS)));
-        meal.setDate(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_DATE)));
-        meal.setTime(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_TIME)));
-        meal.setNotes(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_NOTES)));
-        meal.setPhotoPath(cursor.getString(cursor.getColumnIndexOrThrow(COLUMN_PHOTO_PATH)));
+        meal.setId(cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_ID)));
+        meal.setUserId(cursor.getLong(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_USER_ID_FK)));
+        meal.setName(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_NAME)));
+        meal.setMealType(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_TYPE)));
+        meal.setCalories(cursor.getInt(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_CALORIES)));
+        meal.setProteins(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_PROTEINS)));
+        meal.setCarbs(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_CARBS)));
+        meal.setFats(cursor.getDouble(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_FATS)));
+        meal.setDate(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_DATE)));
+        meal.setTime(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_TIME)));
+        meal.setNotes(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_NOTES)));
+        meal.setPhotoPath(cursor.getString(cursor.getColumnIndexOrThrow(DatabaseHelper.KEY_MEAL_PHOTO_PATH)));
         
         return meal;
     }

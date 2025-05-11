@@ -42,7 +42,7 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.List;
 
-import com.example.trackerhealth.dao.MealDao;
+import com.example.trackerhealth.dao.MealDAO;
 import com.example.trackerhealth.database.DatabaseHelper;
 import com.example.trackerhealth.model.Meal;
 
@@ -66,7 +66,7 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
     private String currentPhotoPath;
     private Uri photoUri;
 
-    private MealDao mealDao;
+    private MealDAO mealDao;
     private long currentUserId; // You'll need to get this from your login/session management
 
     @Override
@@ -75,7 +75,7 @@ public class FoodTrackerActivity extends AppCompatActivity implements BottomNavi
         setContentView(R.layout.activity_food_tracker);
 
         // Initialize DAO
-        mealDao = new MealDao(DatabaseHelper.getInstance(this));
+        mealDao = new MealDAO(this);
         
         // Get current user ID (implement this based on your authentication system)
         currentUserId = getCurrentUserId();
