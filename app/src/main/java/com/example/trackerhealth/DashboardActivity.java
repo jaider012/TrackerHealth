@@ -34,7 +34,6 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
     private BottomNavigationView bottomNavigationView;
     private Button logoutButton;
     private Button runningDashboardButton;
-    private Button viewAllMealsButton;
     private TextView welcomeText;
     private TextView noActivitiesText;
     private TextView noMealsText;
@@ -63,9 +62,6 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
     
     // ID de usuario actual (en un app real se tomaría del login)
     private long currentUserId = 1;
-    
-    // Estado de visualización de comidas
-    private boolean showingAllMeals = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -73,18 +69,7 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
         setContentView(R.layout.activity_dashboard);
 
         // Inicializar vistas
-        bottomNavigationView = findViewById(R.id.bottom_navigation);
-        logoutButton = findViewById(R.id.logout_button);
-        runningDashboardButton = findViewById(R.id.running_dashboard_button);
-        viewAllMealsButton = findViewById(R.id.view_all_meals_button);
-        welcomeText = findViewById(R.id.welcome_text);
-        noActivitiesText = findViewById(R.id.no_activities_text);
-        noMealsText = findViewById(R.id.no_meals_text);
-        activitiesRecyclerView = findViewById(R.id.activities_recycler_view);
-        mealsRecyclerView = findViewById(R.id.meals_recycler_view);
-        stepsValue = findViewById(R.id.steps_value);
-        caloriesValue = findViewById(R.id.calories_value);
-        exercisesValue = findViewById(R.id.exercises_value);
+        initializeViews();
         
         // Inicializar DAO
         activityDAO = new PhysicalActivityDAO(this);
@@ -98,78 +83,114 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
         setupRecyclerViews();
         
         // Configurar el mensaje de bienvenida personalizado
-        SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
-        String userName = prefs.getString(KEY_USER_NAME, "");
-        if (!userName.isEmpty()) {
-            welcomeText.setText(getString(R.string.welcome_user, userName));
-        }
+        setupWelcomeMessage();
         
-        // Configurar el botón de logout
-        logoutButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                logout();
-            }
-        });
-        
-        // Configurar el botón para ir al Running Dashboard
-        if (runningDashboardButton != null) {
-            runningDashboardButton.setOnClickListener(new View.OnClickListener() {
-                @Override
-                public void onClick(View v) {
-                    Intent intent = new Intent(DashboardActivity.this, RunningDashboardActivity.class);
-                    startActivity(intent);
-                }
-            });
-        }
+        // Configurar botones
+        setupButtons();
         
         // Configurar bottom navigation
-        bottomNavigationView.setOnNavigationItemSelectedListener(this);
-        
-        // Set Dashboard as selected by default
-        bottomNavigationView.setSelectedItemId(R.id.navigation_dashboard);
-        
-        // Configurar el botón para ver todas las comidas
-        if (viewAllMealsButton != null) {
-            viewAllMealsButton.setOnClickListener(v -> toggleMealsView());
-        }
+        setupBottomNavigation();
         
         // Cargar datos
         loadDashboardData();
     }
-    
+
+    private void initializeViews() {
+        bottomNavigationView = findViewById(R.id.bottom_navigation);
+        logoutButton = findViewById(R.id.logout_button);
+        runningDashboardButton = findViewById(R.id.running_dashboard_button);
+        welcomeText = findViewById(R.id.welcome_text);
+        noActivitiesText = findViewById(R.id.no_activities_text);
+        noMealsText = findViewById(R.id.no_meals_text);
+        activitiesRecyclerView = findViewById(R.id.activities_recycler_view);
+        mealsRecyclerView = findViewById(R.id.meals_recycler_view);
+        stepsValue = findViewById(R.id.steps_value);
+        caloriesValue = findViewById(R.id.calories_value);
+        exercisesValue = findViewById(R.id.exercises_value);
+    }
+
     private void setupRecyclerViews() {
         // Configurar RecyclerView de actividades
         activitiesRecyclerView.setLayoutManager(new LinearLayoutManager(this));
         activityAdapter = new ActivityAdapter(this, activityList, activity -> {
-            // Abrir detalles de la actividad al hacer clic
             WorkoutDetailActivity.start(this, activity.getId(), activity.getActivityType());
         });
         activitiesRecyclerView.setAdapter(activityAdapter);
         
         // Configurar RecyclerView de comidas
-        mealsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        LinearLayoutManager mealsLayoutManager = new LinearLayoutManager(this);
+        mealsRecyclerView.setLayoutManager(mealsLayoutManager);
         mealAdapter = new MealAdapter(this, mealList, meal -> {
-            // Abrir detalles de la comida al hacer clic (se implementaría después)
+            // Abrir detalles de la comida al hacer clic
             Toast.makeText(this, "Detalles de: " + meal.getName(), Toast.LENGTH_SHORT).show();
         });
         mealsRecyclerView.setAdapter(mealAdapter);
     }
+
+    private void setupWelcomeMessage() {
+        SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
+        String userName = prefs.getString(KEY_USER_NAME, "");
+        if (!userName.isEmpty()) {
+            welcomeText.setText(getString(R.string.welcome_user, userName));
+        }
+    }
+
+    private void setupButtons() {
+        logoutButton.setOnClickListener(v -> logout());
+        
+        if (runningDashboardButton != null) {
+            runningDashboardButton.setOnClickListener(v -> {
+                Intent intent = new Intent(DashboardActivity.this, RunningDashboardActivity.class);
+                startActivity(intent);
+            });
+        }
+    }
+
+    private void setupBottomNavigation() {
+        bottomNavigationView.setOnNavigationItemSelectedListener(this);
+        bottomNavigationView.setSelectedItemId(R.id.navigation_dashboard);
+    }
     
     private void loadDashboardData() {
         try {
-            // Cargar actividades recientes
             loadRecentActivities();
-            
-            // Cargar comidas del día
-            loadTodaysMeals();
-            
-            // Actualizar resumen diario
+            loadAllMeals();
             updateDailySummary();
         } catch (Exception e) {
-            // Loguear el error pero evitar que la aplicación crashee
             Log.e("DashboardActivity", "Error al cargar datos: " + e.getMessage(), e);
             Toast.makeText(this, "Error al cargar algunos datos. Intente nuevamente.", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private void loadAllMeals() {
+        try {
+            // Limpiar lista anterior
+            mealList.clear();
+            
+            // Obtener todas las comidas del usuario
+            List<Meal> meals = mealDAO.getAllMealsByUser(currentUserId);
+            
+            if (meals.isEmpty()) {
+                // Solo crear datos de ejemplo si no hay comidas
+                createSampleMeals();
+            } else {
+                mealList.addAll(meals);
+            }
+            
+            // Actualizar UI
+            if (mealList.isEmpty()) {
+                noMealsText.setVisibility(View.VISIBLE);
+                mealsRecyclerView.setVisibility(View.GONE);
+            } else {
+                noMealsText.setVisibility(View.GONE);
+                mealsRecyclerView.setVisibility(View.VISIBLE);
+                mealAdapter.notifyDataSetChanged();
+            }
+        } catch (Exception e) {
+            Log.e("DashboardActivity", "Error al cargar comidas: " + e.getMessage(), e);
+            noMealsText.setText(R.string.error_loading_meals);
+            noMealsText.setVisibility(View.VISIBLE);
+            mealsRecyclerView.setVisibility(View.GONE);
         }
     }
     
@@ -198,38 +219,82 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
         }
     }
     
-    private void loadTodaysMeals() {
+    private void updateDailySummary() {
         try {
-            // Limpiar lista anterior
-            mealList.clear();
-            
-            // Obtener comidas del día
-            List<Meal> todaysMeals = mealDAO.getTodaysMeals(currentUserId);
-            
-            if (todaysMeals.isEmpty()) {
-                // Crearemos algunos datos de ejemplo solo para la demo si no hay datos reales
-                createSampleMeals();
-            } else {
-                mealList.addAll(todaysMeals);
+            // Sumar calorías consumidas en comidas
+            int totalCalories = 0;
+            for (Meal meal : mealList) {
+                totalCalories += meal.getCalories();
             }
+            
+            // Calcular pasos (simulados para la demo)
+            int steps = 6532; // Valor de ejemplo
+            
+            // Calcular número de ejercicios realizados hoy
+            int exercisesCount = activityDAO.getActivitiesByDate(currentUserId, 
+                    new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date())).size();
             
             // Actualizar UI
-            if (mealList.isEmpty()) {
-                noMealsText.setVisibility(View.VISIBLE);
-                mealsRecyclerView.setVisibility(View.GONE);
-            } else {
-                noMealsText.setVisibility(View.GONE);
-                mealsRecyclerView.setVisibility(View.VISIBLE);
-                mealAdapter.notifyDataSetChanged();
-            }
+            stepsValue.setText(String.valueOf(steps));
+            caloriesValue.setText(String.valueOf(totalCalories));
+            exercisesValue.setText(String.valueOf(exercisesCount));
         } catch (Exception e) {
-            Log.e("DashboardActivity", "Error al cargar comidas: " + e.getMessage(), e);
-            noMealsText.setText("Error al cargar comidas");
-            noMealsText.setVisibility(View.VISIBLE);
-            mealsRecyclerView.setVisibility(View.GONE);
+            Log.e("DashboardActivity", "Error al actualizar resumen diario: " + e.getMessage(), e);
+            // En caso de error, mostrar valores predeterminados
+            stepsValue.setText("0");
+            caloriesValue.setText("0");
+            exercisesValue.setText("0");
         }
     }
     
+    /**
+     * Cierra la sesión del usuario y regresa a la pantalla de login
+     */
+    private void logout() {
+        // Limpiar las preferencias de usuario
+        SharedPreferences.Editor editor = getSharedPreferences(PREF_NAME, MODE_PRIVATE).edit();
+        editor.putBoolean(KEY_IS_LOGGED_IN, false);
+        editor.apply();
+        
+        // Redirigir a la pantalla de login
+        Intent intent = new Intent(this, LoginActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+        startActivity(intent);
+        finish();
+    }
+
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        Intent intent;
+        
+        int itemId = item.getItemId();
+        
+        if (itemId == R.id.navigation_dashboard) {
+            return true;
+        } else if (itemId == R.id.navigation_activity) {
+            intent = new Intent(this, PhysicalActivityTracker.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.navigation_food) {
+            intent = new Intent(this, FoodTrackerActivity.class);
+            startActivity(intent);
+            return true;
+        } else if (itemId == R.id.navigation_reports) {
+            intent = new Intent(this, ReportsActivity.class);
+            startActivity(intent);
+            return true;
+        }
+        
+        return false;
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Recargar datos cuando se vuelve a la actividad
+        loadDashboardData();
+    }
+
     // Crear datos de ejemplo para la demo
     private void createSampleMeals() {
         try {
@@ -328,127 +393,6 @@ public class DashboardActivity extends AppCompatActivity implements BottomNaviga
             }
         } catch (Exception e) {
             Log.e("DashboardActivity", "Error al crear comidas de ejemplo: " + e.getMessage(), e);
-        }
-    }
-    
-    private void updateDailySummary() {
-        try {
-            // Sumar calorías consumidas en comidas
-            int totalCalories = 0;
-            for (Meal meal : mealList) {
-                totalCalories += meal.getCalories();
-            }
-            
-            // Calcular pasos (simulados para la demo)
-            int steps = 6532; // Valor de ejemplo
-            
-            // Calcular número de ejercicios realizados hoy
-            int exercisesCount = activityDAO.getActivitiesByDate(currentUserId, 
-                    new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(new Date())).size();
-            
-            // Actualizar UI
-            stepsValue.setText(String.valueOf(steps));
-            caloriesValue.setText(String.valueOf(totalCalories));
-            exercisesValue.setText(String.valueOf(exercisesCount));
-        } catch (Exception e) {
-            Log.e("DashboardActivity", "Error al actualizar resumen diario: " + e.getMessage(), e);
-            // En caso de error, mostrar valores predeterminados
-            stepsValue.setText("0");
-            caloriesValue.setText("0");
-            exercisesValue.setText("0");
-        }
-    }
-    
-    /**
-     * Cierra la sesión del usuario y regresa a la pantalla de login
-     */
-    private void logout() {
-        // Limpiar las preferencias de usuario
-        SharedPreferences.Editor editor = getSharedPreferences(PREF_NAME, MODE_PRIVATE).edit();
-        editor.putBoolean(KEY_IS_LOGGED_IN, false);
-        editor.apply();
-        
-        // Redirigir a la pantalla de login
-        Intent intent = new Intent(this, LoginActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        startActivity(intent);
-        finish();
-    }
-
-    @Override
-    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
-        Intent intent;
-        
-        int itemId = item.getItemId();
-        
-        if (itemId == R.id.navigation_dashboard) {
-            return true;
-        } else if (itemId == R.id.navigation_activity) {
-            intent = new Intent(this, PhysicalActivityTracker.class);
-            startActivity(intent);
-            return true;
-        } else if (itemId == R.id.navigation_food) {
-            intent = new Intent(this, FoodTrackerActivity.class);
-            startActivity(intent);
-            return true;
-        } else if (itemId == R.id.navigation_reports) {
-            intent = new Intent(this, ReportsActivity.class);
-            startActivity(intent);
-            return true;
-        }
-        
-        return false;
-    }
-    
-    @Override
-    protected void onResume() {
-        super.onResume();
-        // Recargar datos cuando se vuelve a la actividad
-        loadDashboardData();
-    }
-
-    private void toggleMealsView() {
-        showingAllMeals = !showingAllMeals;
-        loadMeals();
-        viewAllMealsButton.setText(showingAllMeals ? R.string.show_today : R.string.view_all);
-    }
-    
-    private void loadMeals() {
-        try {
-            // Limpiar lista anterior
-            mealList.clear();
-            
-            // Obtener comidas según el estado
-            List<Meal> meals;
-            if (showingAllMeals) {
-                meals = mealDAO.getAllMealsByUser(currentUserId);
-            } else {
-                meals = mealDAO.getTodaysMeals(currentUserId);
-            }
-            
-            if (meals.isEmpty() && !showingAllMeals) {
-                // Solo crear datos de ejemplo si estamos mostrando las comidas de hoy
-                createSampleMeals();
-            } else {
-                mealList.addAll(meals);
-            }
-            
-            // Actualizar UI
-            if (mealList.isEmpty()) {
-                noMealsText.setVisibility(View.VISIBLE);
-                mealsRecyclerView.setVisibility(View.GONE);
-                noMealsText.setText(showingAllMeals ? 
-                    R.string.no_meals_recorded_all : R.string.no_meals_recorded);
-            } else {
-                noMealsText.setVisibility(View.GONE);
-                mealsRecyclerView.setVisibility(View.VISIBLE);
-                mealAdapter.notifyDataSetChanged();
-            }
-        } catch (Exception e) {
-            Log.e("DashboardActivity", "Error al cargar comidas: " + e.getMessage(), e);
-            noMealsText.setText("Error al cargar comidas");
-            noMealsText.setVisibility(View.VISIBLE);
-            mealsRecyclerView.setVisibility(View.GONE);
         }
     }
 }

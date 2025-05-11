@@ -217,13 +217,15 @@
                         android:gravity="center"
                         android:padding="16dp"
                         android:text="@string/no_meals_recorded"
-                        android:textColor="@color/secondary_text" />
+                        android:textColor="@color/secondary_text"
+                        android:visibility="gone" />
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/meals_recycler_view"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:visibility="gone" />
+                        android:clipToPadding="false"
+                        android:paddingBottom="8dp" />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>
