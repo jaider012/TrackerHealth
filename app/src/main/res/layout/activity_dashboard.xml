@@ -188,22 +188,27 @@
                     android:orientation="vertical"
                     android:padding="16dp">
 
-                    <TextView
-                        style="@style/TitleText"
-                        android:layout_width="0dp"
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:layout_marginBottom="8dp"
-                        android:text="@string/todays_meals" />
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="8dp">
 
-                    <Button
-                        android:id="@+id/view_all_meals_button"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/view_all"
-                        android:textColor="@color/white"
-                        android:background="@drawable/rounded_button_bg"
-                        android:layout_marginStart="8dp" />
+                        <TextView
+                            style="@style/TitleText"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="@string/todays_meals" />
+
+                        <Button
+                            android:id="@+id/view_all_meals_button"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="@string/view_all"
+                            android:textColor="@color/white"
+                            android:background="@drawable/rounded_button_bg" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/no_meals_text"
