@@ -77,6 +77,7 @@
     <string name="reports_statistics">Reports &amp; Statistics</string>
     <string name="activity_summary">Activity Summary</string>
     <string name="nutrition_summary">Nutrition Summary</string>
+    <string name="calories_over_time">Calories Over Time</string>
     <string name="total_activities">Total Activities</string>
     <string name="total_distance_km">Total Distance (km)</string>
     <string name="avg_calories_day">Avg. Calories/Day</string>
